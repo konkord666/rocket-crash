@@ -23,7 +23,7 @@ async def start_command(message: types.Message):
     await message.answer(
         "🎮 <b>Добро пожаловать в Rocket Crash!</b>\n\n"
         "🚀 Нажмите кнопку ниже чтобы начать игру\n"
-        "💰 Начальный баланс: 1000 ⭐",
+        "💰 Начальный баланс: 100 ⭐",
         reply_markup=keyboard,
         parse_mode="HTML"
     )
