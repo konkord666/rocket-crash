@@ -1757,13 +1757,15 @@
             document.getElementById('playBtn').textContent = '⏳ Ожидание...';
             document.getElementById('betInput').disabled = true;
             
-            // Если это первая ставка, запускаем таймер
-            if (gameState === GAME_STATE.WAITING) {
-                gameState = GAME_STATE.BETTING;
-                startBettingTimer();
-            }
+            // Отправляем ставку на сервер через WebSocket
+            const userName = tg.initDataUnsafe?.user?.first_name || 'Игрок';
+            socket.emit('place_bet', {
+                userId: userId,
+                name: userName,
+                bet: bet
+            });
             
-            updateStatus(`✅ Ставка принята! Раунд начнется через ${roundTimer}с`);
+            updateStatus(`✅ Ставка принята! Ожидайте начала игры...`);
         }
         
         function updateGame() {
@@ -1877,13 +1879,15 @@
         }
         
         async function cashout() {
-            if (!hasBet || cashedOutAt > 0) return;
+            if (!hasBet || cashedOutAt > 0 || !serverGameActive) return;
             
             const winAmount = Math.floor(currentBet * multiplier);
             cashedOutAt = multiplier;
-            continueAnimation = true;
             
-            // Начисляем выигрыш на сервере
+            // Отправляем на сервер
+            socket.emit('cashout', { userId: userId, multiplier: multiplier });
+            
+            // Начисляем выигрыш
             try {
                 const response = await fetch(`${API_URL}/api/user/update_balance`, {
                     method: 'POST',
@@ -1899,20 +1903,12 @@
                 updateBalance();
             }
             
-            // Записываем результат в статистику
             recordGameResult(true, currentBet, winAmount, multiplier);
             
-            // Обновляем результат игрока
-            const userName = tg.initDataUnsafe?.user?.first_name || 'Игрок';
-            updatePlayerResult(userName, multiplier, true);
-            
             updateStatus(`✅ Выигрыш: ${winAmount} ⭐ (${multiplier.toFixed(2)}x) - Ракета продолжает лететь...`);
-            
-            // Отключаем кнопку
             document.getElementById('playBtn').disabled = true;
             document.getElementById('playBtn').textContent = '✅ Выигрыш забран';
             
-            // Вибрация при выигрыше
             if (tg.HapticFeedback) {
                 tg.HapticFeedback.notificationOccurred('success');
             }
@@ -2156,94 +2152,19 @@
             });
         }
         
-        // Таймер приема ставок (10 секунд)
+        // Таймер приема ставок - ОТКЛЮЧЕН, управляется сервером
         function startBettingTimer() {
-            roundTimer = 10;
-            updateStatus(`💰 Прием ставок: ${roundTimer}с`);
-            
-            timerInterval = setInterval(() => {
-                roundTimer--;
-                
-                if (roundTimer > 5) {
-                    updateStatus(`💰 Прием ставок: ${roundTimer}с`);
-                } else if (roundTimer > 0) {
-                    // Переход к обратному отсчету
-                    if (gameState === GAME_STATE.BETTING) {
-                        gameState = GAME_STATE.COUNTDOWN;
-                        clearInterval(timerInterval);
-                        startCountdown();
-                    }
-                }
-            }, 1000);
+            // Ничего не делаем - сервер управляет таймером
         }
         
-        // Обратный отсчет (5 секунд с большими цифрами)
+        // Обратный отсчет - ОТКЛЮЧЕН, управляется сервером
         function startCountdown() {
-            let countdown = 5;
-            const multiplierEl = document.getElementById('multiplier');
-            
-            // Блокируем ставки
-            if (!hasBet) {
-                document.getElementById('playBtn').disabled = true;
-            }
-            
-            multiplierEl.style.fontSize = '6em';
-            multiplierEl.style.color = '#3b82f6';
-            multiplierEl.textContent = countdown;
-            
-            updateStatus('🚀 Запуск через...');
-            
-            countdownInterval = setInterval(() => {
-                countdown--;
-                
-                if (countdown > 0) {
-                    multiplierEl.textContent = countdown;
-                    // Анимация мигания
-                    multiplierEl.style.opacity = '0.3';
-                    setTimeout(() => {
-                        multiplierEl.style.opacity = '1';
-                    }, 300);
-                } else {
-                    clearInterval(countdownInterval);
-                    multiplierEl.style.fontSize = '4.5em';
-                    startRocketGame();
-                }
-            }, 1000);
+            // Ничего не делаем - сервер управляет
         }
         
-        // Запуск игры
+        // Запуск игры - ОТКЛЮЧЕН, управляется сервером
         function startRocketGame() {
-            gameState = GAME_STATE.PLAYING;
-            
-            // Генерация точки краша
-            crashPoint = generateCrashPoint();
-            multiplier = 1.0;
-            gameStartTime = Date.now();
-            
-            // Сброс
-            graphPoints = [];
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('crashText').classList.remove('show');
-            
-            const rocket = document.getElementById('rocket');
-            const multiplierEl = document.getElementById('multiplier');
-            
-            rocket.classList.remove('crashed');
-            rocket.style.bottom = '25px';
-            rocket.style.transform = 'translateX(-50%)';
-            multiplierEl.classList.add('growing');
-            multiplierEl.style.opacity = '1';
-            
-            if (hasBet) {
-                document.getElementById('playBtn').textContent = '💰 Забрать выигрыш';
-                document.getElementById('playBtn').onclick = cashout;
-                document.getElementById('playBtn').disabled = false;
-            }
-            
-            updateStatus('🚀 Полет!');
-            
-            // Запуск игры
-            gameInterval = setInterval(updateGame, 50);
+            // Ничего не делаем - сервер управляет
         }
         
         // Навигация
@@ -3469,38 +3390,97 @@
         });
         
         socket.on('betting_phase', (data) => {
-            updateStatus(`💰 Прием ставок: ${data.timer}с`);
+            hasBet = false;
+            cashedOutAt = 0;
+            currentPlayers = [];
+            updatePlayersList();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            graphPoints = [];
+            
             document.getElementById('playBtn').disabled = false;
             document.getElementById('playBtn').textContent = '🚀 Сделать ставку';
+            document.getElementById('playBtn').onclick = startGame;
+            document.getElementById('betInput').disabled = false;
+            document.getElementById('multiplier').textContent = '1.00x';
+            document.getElementById('multiplier').style.fontSize = '4.5em';
+            document.getElementById('multiplier').style.color = '#3b82f6';
+            document.getElementById('crashText').classList.remove('show');
+            document.getElementById('rocket').classList.remove('crashed');
+            document.getElementById('rocket').style.bottom = '25px';
+            
+            updateStatus(`💰 Прием ставок: ${data.timer}с`);
         });
         
         socket.on('timer_update', (data) => {
-            if (data.timer > 0) {
-                updateStatus(`💰 Прием ставок: ${data.timer}с`);
-            }
+            updateStatus(`💰 Прием ставок: ${data.timer}с`);
         });
         
         socket.on('game_started', () => {
             serverGameActive = true;
-            startRocketAnimation();
+            gameStartTime = Date.now();
+            graphPoints = [];
+            
+            if (hasBet) {
+                document.getElementById('playBtn').textContent = '💰 Забрать выигрыш';
+                document.getElementById('playBtn').onclick = cashout;
+                document.getElementById('playBtn').disabled = false;
+            } else {
+                document.getElementById('playBtn').disabled = true;
+            }
+            
+            updateStatus('🚀 Полет!');
         });
         
         socket.on('multiplier_update', (data) => {
-            serverMultiplier = data.multiplier;
-            updateMultiplierDisplay(data.multiplier);
+            multiplier = data.multiplier;
+            const multiplierEl = document.getElementById('multiplier');
+            multiplierEl.textContent = multiplier.toFixed(2) + 'x';
+            multiplierEl.classList.add('growing');
+            
+            if (multiplier < 2) multiplierEl.style.color = '#3b82f6';
+            else if (multiplier < 5) multiplierEl.style.color = '#22c55e';
+            else if (multiplier < 10) multiplierEl.style.color = '#eab308';
+            else multiplierEl.style.color = '#ef4444';
+            
+            graphPoints.push({ x: (Date.now() - gameStartTime) / 1000, y: multiplier });
+            drawGraph();
+            updateRocketPosition();
         });
         
         socket.on('player_bet', (player) => {
-            addPlayerToList(player);
+            if (player.userId === userId) return;
+            currentPlayers.push({
+                name: player.name,
+                bet: player.bet,
+                result: null,
+                cashout: null
+            });
+            updatePlayersList();
         });
         
         socket.on('player_cashout', (data) => {
-            updatePlayerCashout(data);
+            const player = currentPlayers.find(p => p.name === data.name);
+            if (player) {
+                player.cashout = data.multiplier;
+                player.result = true;
+                updatePlayersList();
+            }
         });
         
         socket.on('game_crashed', (data) => {
             serverGameActive = false;
-            showCrash(data.crashPoint);
+            document.getElementById('multiplier').classList.remove('growing');
+            document.getElementById('rocket').classList.add('crashed');
+            document.getElementById('crashText').textContent = `💥 ${data.crashPoint.toFixed(2)}x`;
+            document.getElementById('crashText').classList.add('show');
+            
+            if (hasBet && cashedOutAt === 0) {
+                updateStatus(`💥 Краш на ${data.crashPoint.toFixed(2)}x! Вы проиграли ${currentBet} ⭐`);
+                recordGameResult(false, currentBet, 0, 0);
+            } else if (cashedOutAt > 0) {
+                updateStatus(`✅ Вы забрали на ${cashedOutAt.toFixed(2)}x | Краш: ${data.crashPoint.toFixed(2)}x`);
+            }
+            
             addToHistory(data.crashPoint);
         });
         
