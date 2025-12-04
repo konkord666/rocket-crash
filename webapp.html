@@ -1870,15 +1870,28 @@
             rocket.style.transform = `translateX(-50%) rotate(${wobble}deg)`;
         }
         
-        function cashout() {
+        async function cashout() {
             if (!hasBet || cashedOutAt > 0) return;
             
             const winAmount = Math.floor(currentBet * multiplier);
-            balance += winAmount;
-            updateBalance();
-            
             cashedOutAt = multiplier;
             continueAnimation = true;
+            
+            // Начисляем выигрыш на сервере
+            try {
+                const response = await fetch(`${API_URL}/api/user/update_balance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, amount: winAmount })
+                });
+                const data = await response.json();
+                balance = data.balance;
+                updateBalance();
+            } catch (error) {
+                console.error('Error updating balance:', error);
+                balance += winAmount;
+                updateBalance();
+            }
             
             // Записываем результат в статистику
             recordGameResult(true, currentBet, winAmount, multiplier);

@@ -1,9 +1,28 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
 const PORT = process.env.PORT || 3000;
+
+// Активные игроки
+let activePlayers = new Set();
+let currentGameState = {
+    isActive: false,
+    multiplier: 1.0,
+    crashPoint: 0,
+    players: []
+};
 
 // Подключение к PostgreSQL (Railway автоматически предоставит DATABASE_URL)
 if (!process.env.DATABASE_URL) {
@@ -229,16 +248,104 @@ app.post('/api/game/add_history', async (req, res) => {
     }
 });
 
-// API: Онлайн пользователи
+// API: Онлайн пользователи (реальное количество)
 app.get('/api/online', (req, res) => {
-    const online = Math.floor(Math.random() * 20) + 10;
-    res.json({ online });
+    res.json({ online: activePlayers.size });
+});
+
+// WebSocket для синхронизации игроков
+io.on('connection', (socket) => {
+    console.log('👤 Игрок подключился:', socket.id);
+    activePlayers.add(socket.id);
+    
+    // Отправляем количество онлайн всем
+    io.emit('online_update', { online: activePlayers.size });
+    
+    // Отправляем текущее состояние игры
+    socket.emit('game_state', currentGameState);
+    
+    // Игрок сделал ставку
+    socket.on('player_bet', (data) => {
+        const playerBet = {
+            id: socket.id,
+            name: data.name || 'Игрок',
+            bet: data.bet,
+            cashout: null,
+            result: null
+        };
+        
+        currentGameState.players.push(playerBet);
+        
+        // Отправляем всем игрокам обновление
+        io.emit('player_joined', playerBet);
+    });
+    
+    // Игрок забрал выигрыш
+    socket.on('player_cashout', (data) => {
+        const player = currentGameState.players.find(p => p.id === socket.id);
+        if (player) {
+            player.cashout = data.multiplier;
+            player.result = 'win';
+            
+            // Отправляем всем
+            io.emit('player_cashed_out', {
+                id: socket.id,
+                name: player.name,
+                multiplier: data.multiplier,
+                winAmount: Math.floor(player.bet * data.multiplier)
+            });
+        }
+    });
+    
+    // Обновление множителя в реальном времени
+    socket.on('game_update', (data) => {
+        if (data.isActive) {
+            currentGameState.isActive = true;
+            currentGameState.multiplier = data.multiplier;
+            io.emit('multiplier_update', { multiplier: data.multiplier });
+        }
+    });
+    
+    // Игра закончилась (краш)
+    socket.on('game_crashed', (data) => {
+        currentGameState.isActive = false;
+        currentGameState.crashPoint = data.crashPoint;
+        
+        // Обновляем проигравших игроков
+        currentGameState.players.forEach(player => {
+            if (!player.cashout) {
+                player.result = 'lose';
+            }
+        });
+        
+        io.emit('game_crash', {
+            crashPoint: data.crashPoint,
+            players: currentGameState.players
+        });
+        
+        // Сбрасываем игроков для новой игры
+        setTimeout(() => {
+            currentGameState.players = [];
+        }, 3000);
+    });
+    
+    // Отключение
+    socket.on('disconnect', () => {
+        console.log('👋 Игрок отключился:', socket.id);
+        activePlayers.delete(socket.id);
+        
+        // Удаляем из текущей игры
+        currentGameState.players = currentGameState.players.filter(p => p.id !== socket.id);
+        
+        io.emit('online_update', { online: activePlayers.size });
+    });
 });
 
 // Запуск сервера
-app.listen(PORT, '0.0.0.0', async () => {
+server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Сервер запущен на порту ${PORT}`);
     console.log(`📊 DATABASE_URL: ${process.env.DATABASE_URL ? 'Установлена' : 'НЕ УСТАНОВЛЕНА!'}`);
+    console.log(`🔌 WebSocket готов для синхронизации игроков`);
     try {
         await initDatabase();
     } catch (error) {
