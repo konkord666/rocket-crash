@@ -253,90 +253,164 @@ app.get('/api/online', (req, res) => {
     res.json({ online: activePlayers.size });
 });
 
-// WebSocket для синхронизации игроков
+// Серверная игра - запускается автоматически каждые 15 секунд
+let gameInterval = null;
+let bettingTimer = null;
+
+function generateCrashPoint() {
+    const rand = Math.random();
+    if (rand < 0.60) return 1.0 + Math.random() * 1.0;
+    else if (rand < 0.85) return 2.0 + Math.random() * 2.0;
+    else if (rand < 0.95) return 4.0 + Math.random() * 3.0;
+    else if (rand < 0.99) return 7.0 + Math.random() * 8.0;
+    else return 15.0 + Math.random() * 35.0;
+}
+
+function startServerGame() {
+    // Фаза приема ставок (10 секунд)
+    currentGameState.phase = 'betting';
+    currentGameState.timer = 10;
+    currentGameState.players = [];
+    
+    console.log('💰 Прием ставок начался');
+    io.emit('betting_phase', { timer: 10 });
+    
+    bettingTimer = setInterval(() => {
+        currentGameState.timer--;
+        io.emit('timer_update', { timer: currentGameState.timer });
+        
+        if (currentGameState.timer <= 0) {
+            clearInterval(bettingTimer);
+            startFlying();
+        }
+    }, 1000);
+}
+
+function startFlying() {
+    // Фаза полета
+    currentGameState.phase = 'flying';
+    currentGameState.isActive = true;
+    currentGameState.multiplier = 1.0;
+    currentGameState.crashPoint = generateCrashPoint();
+    currentGameState.startTime = Date.now();
+    
+    console.log(`🚀 Ракета полетела! Краш на ${currentGameState.crashPoint.toFixed(2)}x`);
+    io.emit('game_started', { crashPoint: currentGameState.crashPoint });
+    
+    // Обновление множителя каждые 50мс
+    gameInterval = setInterval(() => {
+        const elapsed = (Date.now() - currentGameState.startTime) / 1000;
+        currentGameState.multiplier = Math.pow(1.06, elapsed * 2);
+        
+        if (currentGameState.multiplier >= currentGameState.crashPoint) {
+            crashGame();
+        } else {
+            io.emit('multiplier_update', { multiplier: currentGameState.multiplier });
+        }
+    }, 50);
+}
+
+function crashGame() {
+    clearInterval(gameInterval);
+    currentGameState.isActive = false;
+    currentGameState.phase = 'crashed';
+    
+    console.log(`💥 Краш на ${currentGameState.crashPoint.toFixed(2)}x`);
+    
+    // Обновляем проигравших
+    currentGameState.players.forEach(player => {
+        if (!player.cashedOut) {
+            player.result = 'lose';
+        }
+    });
+    
+    io.emit('game_crashed', {
+        crashPoint: currentGameState.crashPoint,
+        players: currentGameState.players
+    });
+    
+    // Сохраняем в историю
+    pool.query('INSERT INTO game_history (crash_value) VALUES ($1)', [currentGameState.crashPoint])
+        .catch(err => console.error('Error saving history:', err));
+    
+    // Новая игра через 5 секунд
+    setTimeout(() => {
+        startServerGame();
+    }, 5000);
+}
+
+// Запуск первой игры при старте сервера
+setTimeout(() => {
+    console.log('🎮 Запуск игрового цикла');
+    startServerGame();
+}, 2000);
+
+// WebSocket для игроков
 io.on('connection', (socket) => {
     console.log('👤 Игрок подключился:', socket.id);
     activePlayers.add(socket.id);
     
-    // Отправляем количество онлайн всем
+    // Отправляем текущее состояние
+    socket.emit('game_state', {
+        phase: currentGameState.phase,
+        multiplier: currentGameState.multiplier,
+        timer: currentGameState.timer,
+        players: currentGameState.players,
+        online: activePlayers.size
+    });
+    
     io.emit('online_update', { online: activePlayers.size });
     
-    // Отправляем текущее состояние игры
-    socket.emit('game_state', currentGameState);
-    
     // Игрок сделал ставку
-    socket.on('player_bet', (data) => {
-        const playerBet = {
+    socket.on('place_bet', async (data) => {
+        if (currentGameState.phase !== 'betting') {
+            socket.emit('bet_error', { message: 'Прием ставок закрыт' });
+            return;
+        }
+        
+        const player = {
             id: socket.id,
+            userId: data.userId,
             name: data.name || 'Игрок',
             bet: data.bet,
-            cashout: null,
+            cashedOut: false,
+            cashoutMultiplier: null,
             result: null
         };
         
-        currentGameState.players.push(playerBet);
+        currentGameState.players.push(player);
         
-        // Отправляем всем игрокам обновление
-        io.emit('player_joined', playerBet);
+        // Отправляем всем
+        io.emit('player_bet', player);
+        console.log(`💰 ${player.name} поставил ${player.bet} ⭐`);
     });
     
     // Игрок забрал выигрыш
-    socket.on('player_cashout', (data) => {
+    socket.on('cashout', (data) => {
         const player = currentGameState.players.find(p => p.id === socket.id);
-        if (player) {
-            player.cashout = data.multiplier;
+        if (player && !player.cashedOut && currentGameState.isActive) {
+            player.cashedOut = true;
+            player.cashoutMultiplier = currentGameState.multiplier;
             player.result = 'win';
             
-            // Отправляем всем
-            io.emit('player_cashed_out', {
+            const winAmount = Math.floor(player.bet * player.cashoutMultiplier);
+            
+            io.emit('player_cashout', {
                 id: socket.id,
                 name: player.name,
-                multiplier: data.multiplier,
-                winAmount: Math.floor(player.bet * data.multiplier)
+                multiplier: player.cashoutMultiplier,
+                winAmount: winAmount
             });
+            
+            console.log(`✅ ${player.name} забрал ${winAmount} ⭐ на ${player.cashoutMultiplier.toFixed(2)}x`);
         }
-    });
-    
-    // Обновление множителя в реальном времени
-    socket.on('game_update', (data) => {
-        if (data.isActive) {
-            currentGameState.isActive = true;
-            currentGameState.multiplier = data.multiplier;
-            io.emit('multiplier_update', { multiplier: data.multiplier });
-        }
-    });
-    
-    // Игра закончилась (краш)
-    socket.on('game_crashed', (data) => {
-        currentGameState.isActive = false;
-        currentGameState.crashPoint = data.crashPoint;
-        
-        // Обновляем проигравших игроков
-        currentGameState.players.forEach(player => {
-            if (!player.cashout) {
-                player.result = 'lose';
-            }
-        });
-        
-        io.emit('game_crash', {
-            crashPoint: data.crashPoint,
-            players: currentGameState.players
-        });
-        
-        // Сбрасываем игроков для новой игры
-        setTimeout(() => {
-            currentGameState.players = [];
-        }, 3000);
     });
     
     // Отключение
     socket.on('disconnect', () => {
         console.log('👋 Игрок отключился:', socket.id);
         activePlayers.delete(socket.id);
-        
-        // Удаляем из текущей игры
         currentGameState.players = currentGameState.players.filter(p => p.id !== socket.id);
-        
         io.emit('online_update', { online: activePlayers.size });
     });
 });

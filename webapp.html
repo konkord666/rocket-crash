@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rocket Crash</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1522,6 +1523,11 @@
         
         // API URL - ваш домен Railway
         const API_URL = 'https://web-production-3f4d.up.railway.app';
+        
+        // WebSocket подключение
+        const socket = io(API_URL);
+        let serverGameActive = false;
+        let serverMultiplier = 1.0;
         
         let balance = 0;
         let currentBet = 0;
@@ -3445,11 +3451,63 @@
             }
         }
         
+        // WebSocket события
+        socket.on('connect', () => {
+            console.log('✅ Подключено к серверу');
+        });
+        
+        socket.on('game_state', (state) => {
+            console.log('📊 Состояние игры:', state);
+            if (state.phase === 'flying') {
+                serverGameActive = true;
+                serverMultiplier = state.multiplier;
+            }
+        });
+        
+        socket.on('online_update', (data) => {
+            document.getElementById('onlineUsers').textContent = data.online;
+        });
+        
+        socket.on('betting_phase', (data) => {
+            updateStatus(`💰 Прием ставок: ${data.timer}с`);
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('playBtn').textContent = '🚀 Сделать ставку';
+        });
+        
+        socket.on('timer_update', (data) => {
+            if (data.timer > 0) {
+                updateStatus(`💰 Прием ставок: ${data.timer}с`);
+            }
+        });
+        
+        socket.on('game_started', () => {
+            serverGameActive = true;
+            startRocketAnimation();
+        });
+        
+        socket.on('multiplier_update', (data) => {
+            serverMultiplier = data.multiplier;
+            updateMultiplierDisplay(data.multiplier);
+        });
+        
+        socket.on('player_bet', (player) => {
+            addPlayerToList(player);
+        });
+        
+        socket.on('player_cashout', (data) => {
+            updatePlayerCashout(data);
+        });
+        
+        socket.on('game_crashed', (data) => {
+            serverGameActive = false;
+            showCrash(data.crashPoint);
+            addToHistory(data.crashPoint);
+        });
+        
         // Загрузка при старте
         loadBalance();
         loadHistory();
         loadPlayerStats();
-        updateOnlineUsers();
         generateWheel(66); // Генерируем колесо апгрейда по умолчанию
         initPlinko(); // Инициализируем Plinko
         
