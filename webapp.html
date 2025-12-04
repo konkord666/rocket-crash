@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -34,13 +34,31 @@
             100% { transform: translateX(100%); }
         }
         
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.2); }
-            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.3); }
+        @keyframes pulse-glow-gold {
+            0%, 100% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.5), 0 0 50px rgba(255, 215, 0, 0.3); }
+            50% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.7), 0 0 70px rgba(255, 215, 0, 0.4); }
+        }
+        
+        @keyframes pulse-glow-silver {
+            0%, 100% { box-shadow: 0 0 20px rgba(192, 192, 192, 0.4), 0 0 40px rgba(192, 192, 192, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(192, 192, 192, 0.6), 0 0 60px rgba(192, 192, 192, 0.3); }
+        }
+        
+        @keyframes pulse-glow-bronze {
+            0%, 100% { box-shadow: 0 0 20px rgba(205, 127, 50, 0.4), 0 0 40px rgba(205, 127, 50, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(205, 127, 50, 0.6), 0 0 60px rgba(205, 127, 50, 0.3); }
+        }
+        
+        .leaderboard-item.top1-glow {
+            animation: pulse-glow-gold 2s ease-in-out infinite;
+        }
+        
+        .leaderboard-item.top2-glow {
+            animation: pulse-glow-silver 2s ease-in-out infinite;
         }
         
         .leaderboard-item.top3-glow {
-            animation: pulse-glow 2s ease-in-out infinite;
+            animation: pulse-glow-bronze 2s ease-in-out infinite;
         }
         
         .container {
@@ -1390,9 +1408,79 @@
 <body>
     <div class="container">
         
-        <div id="crashPage" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+        <!-- Страница выбора игр -->
+        <div id="gamesPage" style="display: block; height: calc(100vh - 60px); overflow-y: auto; padding: 15px; padding-bottom: 80px; background: #0f1419;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1 style="margin: 0; font-size: 1.8em;">🎮 Игры</h1>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="padding: 6px 12px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; font-size: 0.9em;">
+                        <span>👥</span>
+                        <span id="onlineUsersGames">1</span>
+                    </div>
+                    <div style="padding: 6px 12px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 8px; font-size: 0.9em; font-weight: bold;">
+                        <span id="balanceGames">0</span> ⭐
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Лента выигрышей (бегущая строка) -->
+            <div style="background: rgba(30, 35, 45, 0.6); border-radius: 15px; padding: 10px; margin-bottom: 15px; border: 1px solid rgba(59, 130, 246, 0.2); overflow: hidden; position: relative;">
+                <div style="font-size: 0.85em; color: rgba(255,255,255,0.6); margin-bottom: 6px; font-weight: bold;">🔥 Последние выигрыши</div>
+                <div style="overflow: hidden; position: relative; height: 35px;">
+                    <div id="winsFeed" style="display: flex; gap: 10px; animation: scroll-wins 20s linear infinite; white-space: nowrap;">
+                        <div style="color: rgba(255,255,255,0.4); padding: 8px;">Загрузка...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <style>
+                @keyframes scroll-wins {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+            </style>
+            
+            <!-- Карточки игр -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <div onclick="openGame('crash')" style="position: relative; height: 120px; border-radius: 12px; overflow: hidden; cursor: pointer; border: 2px solid rgba(59, 130, 246, 0.3); transition: all 0.3s;">
+                    <img src="crash.gif" style="width: 100%; height: 100%; object-fit: cover; position: absolute;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(15, 20, 25, 0.3), rgba(15, 20, 25, 0.85)); display: flex; flex-direction: column; justify-content: flex-end; padding: 10px;">
+                        <div style="font-size: 1.5em; margin-bottom: 3px;">🚀</div>
+                        <div style="font-weight: bold; font-size: 1em;">Краш</div>
+                        <div style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Успей выйти!</div>
+                    </div>
+                </div>
+                
+                <div onclick="openGame('plinko')" style="position: relative; height: 120px; border-radius: 12px; overflow: hidden; cursor: pointer; border: 2px solid rgba(59, 130, 246, 0.3); transition: all 0.3s;">
+                    <img src="plinko.gif" style="width: 100%; height: 100%; object-fit: cover; position: absolute;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(15, 20, 25, 0.3), rgba(15, 20, 25, 0.85)); display: flex; flex-direction: column; justify-content: flex-end; padding: 10px;">
+                        <div style="font-size: 1.5em; margin-bottom: 3px;">🎯</div>
+                        <div style="font-weight: bold; font-size: 1em;">Plinko</div>
+                        <div style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Удача решает!</div>
+                    </div>
+                </div>
+                
+                <div onclick="openGame('roulette')" style="position: relative; height: 120px; border-radius: 12px; overflow: hidden; cursor: pointer; border: 2px solid rgba(59, 130, 246, 0.3); transition: all 0.3s;">
+                    <img src="rule.gif" style="width: 100%; height: 100%; object-fit: cover; position: absolute;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(15, 20, 25, 0.3), rgba(15, 20, 25, 0.85)); display: flex; flex-direction: column; justify-content: flex-end; padding: 10px;">
+                        <div style="font-size: 1.5em; margin-bottom: 3px;">🎰</div>
+                        <div style="font-weight: bold; font-size: 1em;">Рулетка</div>
+                        <div style="font-size: 0.7em; color: rgba(255,255,255,0.6);">Ставь на цвет!</div>
+                    </div>
+                </div>
+                
+                <div style="position: relative; height: 120px; border-radius: 12px; overflow: hidden; background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(59, 130, 246, 0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px;">
+                    <div style="font-size: 1.5em; margin-bottom: 3px; opacity: 0.3;">🎲</div>
+                    <div style="font-weight: bold; font-size: 1em; color: rgba(255,255,255,0.4);">Скоро</div>
+                    <div style="font-size: 0.7em; color: rgba(255,255,255,0.3);">В разработке</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="crashPage" style="display: none; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
         <div class="game-area" id="gameArea">
             <div class="top-bar" id="topBar">
+                <button onclick="backToGames()" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 0.85em;">← Назад</button>
                 <button class="top-btn top-btn-users" id="usersBtn">
                     <span>👥</span>
                     <span id="onlineUsers">1</span>
@@ -1429,8 +1517,11 @@
         </div>
         </div>
         
-        <div id="casesPage" style="display: none;">
-            <h1 style="text-align: center; margin: 0 0 6px 0; font-size: 1.2em;">🎯 Plinko</h1>
+        <div id="casesPage" style="display: none; position: relative;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px;">
+                <button onclick="backToGames()" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 0.85em;">← Назад</button>
+                <h1 style="margin: 0; font-size: 1.2em;">🎯 Plinko</h1>
+            </div>
             
             <div class="plinko-container">
                 <!-- Выбор режима -->
@@ -1464,8 +1555,11 @@
             </div>
         </div>
         
-        <div id="upgradePage" style="display: none; height: calc(100vh - 60px); overflow: hidden; background: #0f1419;">
-            <h1 style="text-align: center; margin: 10px 0; font-size: 1.4em;">🎰 Рулетка</h1>
+        <div id="upgradePage" style="display: none; height: calc(100vh - 60px); overflow: hidden; background: #0f1419; position: relative;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0;">
+                <button onclick="backToGames()" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 0.85em;">← Назад</button>
+                <h1 style="margin: 0; font-size: 1.4em;">🎰 Рулетка</h1>
+            </div>
             
             <div style="display: flex; flex-direction: column; height: calc(100% - 50px); padding: 10px;">
                 <!-- Линейная рулетка -->
@@ -1493,16 +1587,19 @@
                     Ожидание...
                 </div>
                 
-                <!-- Ставка и кнопка -->
-                <div style="display: flex; gap: 4px; margin-bottom: 6px;">
-                    <input type="number" id="rouletteBetInput" placeholder="Ставка" min="10" value="50" style="width: 80px; padding: 6px; border: 2px solid rgba(59, 130, 246, 0.4); border-radius: 6px; background: rgba(30, 35, 45, 0.6); color: #3b82f6; font-weight: bold; text-align: center; font-size: 0.9em;">
-                    <button onclick="placeRouletteBet()" id="rouletteBtn" style="flex: 1; padding: 6px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 0.9em;">
-                        🎰 Ставка
-                    </button>
-                </div>
+                <button onclick="toggleRouletteBets()" id="rouletteToggle" style="width: 100%; padding: 8px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; color: white; margin-bottom: 8px; cursor: pointer; font-weight: bold;">▼ Панель ставок</button>
                 
-                <!-- Выбор (компактно) -->
-                <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-bottom: 6px; max-height: 80px; overflow-y: auto; padding: 4px; background: rgba(30, 35, 45, 0.4); border-radius: 6px;">
+                <div id="rouletteBetsPanel" style="display: block;">
+                    <!-- Ставка и кнопка -->
+                    <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                        <input type="number" id="rouletteBetInput" placeholder="Ставка" min="10" value="50" style="width: 80px; padding: 6px; border: 2px solid rgba(59, 130, 246, 0.4); border-radius: 6px; background: rgba(30, 35, 45, 0.6); color: #3b82f6; font-weight: bold; text-align: center; font-size: 0.9em;">
+                        <button onclick="placeRouletteBet()" id="rouletteBtn" style="flex: 1; padding: 6px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 0.9em;">
+                            🎰 Ставка
+                        </button>
+                    </div>
+                    
+                    <!-- Выбор (компактно) -->
+                    <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-bottom: 6px; max-height: 80px; overflow-y: auto; padding: 4px; background: rgba(30, 35, 45, 0.4); border-radius: 6px;">
                     <button onclick="selectRouletteBet('red')" class="roulette-bet-btn" data-type="red" style="padding: 6px 4px; background: #dc2626; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">🔴</button>
                     <button onclick="selectRouletteBet('black')" class="roulette-bet-btn" data-type="black" style="padding: 6px 4px; background: #1a1a1a; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">⚫</button>
                     <button onclick="selectRouletteBet(0)" class="roulette-bet-btn" data-type="0" style="padding: 6px 4px; background: #16a34a; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">0</button>
@@ -1517,10 +1614,11 @@
                     <div id="rouletteHistory" style="display: flex; gap: 4px;"></div>
                 </div>
                 
-                <div style="flex: 1; background: rgba(30, 35, 45, 0.4); border-radius: 8px; padding: 8px; overflow-y: auto; max-height: 150px;">
-                    <div id="rouletteBets" style="font-size: 0.85em;">
-                        <div style="text-align: center; color: rgba(255,255,255,0.4); padding: 10px;">
-                            История ставок появится здесь
+                    <div style="flex: 1; background: rgba(30, 35, 45, 0.4); border-radius: 8px; padding: 8px; overflow-y: auto; max-height: 150px;">
+                        <div id="rouletteBets" style="font-size: 0.85em;">
+                            <div style="text-align: center; color: rgba(255,255,255,0.4); padding: 10px;">
+                                История ставок появится здесь
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1595,31 +1693,31 @@
             <!-- Админ панель -->
             <div id="adminPanel" style="display: none; margin-top: 20px; padding: 15px; background: rgba(139, 92, 246, 0.1); border: 2px solid rgba(139, 92, 246, 0.3); border-radius: 12px;">
                 <h3 style="color: #8b5cf6; margin-bottom: 10px;">👑 Админ панель</h3>
+                
+                <button onclick="toggleAdminUsersList()" style="width: 100%; padding: 10px; margin-bottom: 8px; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                    📋 Показать всех игроков
+                </button>
+                
+                <div id="adminUsersList" style="display: none; max-height: 200px; overflow-y: auto; margin-bottom: 8px; padding: 8px; background: rgba(30, 35, 45, 0.6); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <div style="text-align: center; color: rgba(255,255,255,0.4); padding: 10px;">Загрузка...</div>
+                </div>
+                
                 <input type="text" id="adminTargetId" placeholder="ID игрока" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 2px solid rgba(139, 92, 246, 0.4); border-radius: 8px; background: rgba(30, 35, 45, 0.6); color: white;">
                 <input type="number" id="adminAmount" placeholder="Сумма" value="1000" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 2px solid rgba(139, 92, 246, 0.4); border-radius: 8px; background: rgba(30, 35, 45, 0.6); color: white;">
-                <button onclick="adminGiveCurrency()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
-                    💰 Выдать валюту
-                </button>
+                
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="adminGiveCurrency()" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                        ➕ Выдать
+                    </button>
+                    <button onclick="adminTakeCurrency()" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                        ➖ Забрать
+                    </button>
+                </div>
             </div>
         </div>
         
         <div class="bottom-nav">
-            <button class="nav-btn active" id="navCrash" onclick="switchTab('crash')">
-                <div class="nav-btn-icon">🚀</div>
-                <div>Краш</div>
-            </button>
-            <button class="nav-btn" id="navCases" onclick="switchTab('cases')">
-                <div class="nav-btn-icon">🎯</div>
-                <div>Plinko</div>
-            </button>
-            <button class="nav-btn" id="navUpgrade" onclick="switchTab('upgrade')">
-                <div class="nav-btn-icon">�</div>
-                <div>Рулетка</div>
-            </button>
-            <button class="nav-btn" id="navProfile" onclick="switchTab('profile')">
-                <div class="nav-btn-icon">👤</div>
-                <div>Профиль</div>
-            </button>
+            <button class="nav-btn active" id="navGames" onclick="switchTab('games')"><div class="nav-btn-icon">🎮</div><div>Игры</div></button><button class="nav-btn" id="navRating" onclick="switchTab('rating')"><div class="nav-btn-icon">🏆</div><div>Рейтинг</div></button><button class="nav-btn" id="navProfile" onclick="switchTab('profile')"><div class="nav-btn-icon">👤</div><div>Профиль</div></button>
         </div>
     </div>
 
@@ -1694,10 +1792,11 @@
         // Загрузка баланса с сервера
         async function loadBalance() {
             try {
+                const userName = tg.initDataUnsafe?.user?.first_name || 'Игрок';
                 const response = await fetch(`${API_URL}/api/user/get`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId })
+                    body: JSON.stringify({ user_id: userId, username: userName })
                 });
                 const data = await response.json();
                 balance = data.balance;
@@ -1725,6 +1824,8 @@
         
         function updateBalance() {
             document.getElementById('balance').textContent = balance;
+            const gamesBalance = document.getElementById('balanceGames');
+            if (gamesBalance) gamesBalance.textContent = balance;
         }
         
         // Профиль игрока
@@ -2275,27 +2376,24 @@
             const navButtons = document.querySelectorAll('.nav-btn');
             navButtons.forEach(btn => btn.classList.remove('active'));
             
+            const gamesPage = document.getElementById('gamesPage');
             const crashPage = document.getElementById('crashPage');
             const casesPage = document.getElementById('casesPage');
             const upgradePage = document.getElementById('upgradePage');
             const ratingPage = document.getElementById('ratingPage');
             const profilePage = document.getElementById('profilePage');
             
+            gamesPage.style.display = 'none';
             crashPage.style.display = 'none';
             casesPage.style.display = 'none';
             upgradePage.style.display = 'none';
             ratingPage.style.display = 'none';
             profilePage.style.display = 'none';
             
-            if (tab === 'crash') {
-                document.getElementById('navCrash').classList.add('active');
-                crashPage.style.display = 'block';
-            } else if (tab === 'cases') {
-                document.getElementById('navCases').classList.add('active');
-                casesPage.style.display = 'block';
-            } else if (tab === 'upgrade') {
-                document.getElementById('navUpgrade').classList.add('active');
-                upgradePage.style.display = 'block';
+            if (tab === 'games') {
+                document.getElementById('navGames').classList.add('active');
+                gamesPage.style.display = 'block';
+                loadWinsFeed();
             } else if (tab === 'rating') {
                 document.getElementById('navRating').classList.add('active');
                 ratingPage.style.display = 'block';
@@ -2303,6 +2401,40 @@
             } else if (tab === 'profile') {
                 document.getElementById('navProfile').classList.add('active');
                 profilePage.style.display = 'block';
+                loadPlayerStats();
+            }
+        }
+        
+        function openGame(game) {
+            const gamesPage = document.getElementById('gamesPage');
+            const crashPage = document.getElementById('crashPage');
+            const casesPage = document.getElementById('casesPage');
+            const upgradePage = document.getElementById('upgradePage');
+            
+            gamesPage.style.display = 'none';
+            
+            if (game === 'crash') {
+                crashPage.style.display = 'flex';
+            } else if (game === 'plinko') {
+                casesPage.style.display = 'block';
+            } else if (game === 'roulette') {
+                upgradePage.style.display = 'block';
+            }
+        }
+        
+        function backToGames() {
+            switchTab('games');
+        }
+        
+        function toggleRouletteBets() {
+            const panel = document.getElementById('rouletteBetsPanel');
+            const btn = document.getElementById('rouletteToggle');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                btn.textContent = '▼ Панель ставок';
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = '▶ Панель ставок';
             }
         }
         
@@ -2312,11 +2444,16 @@
                 const response = await fetch(`${API_URL}/api/online`);
                 const data = await response.json();
                 document.getElementById('onlineUsers').textContent = data.online;
+                const gamesOnline = document.getElementById('onlineUsersGames');
+                if (gamesOnline) gamesOnline.textContent = data.online;
             } catch (error) {
                 console.error('Error getting online users:', error);
                 const baseUsers = 15;
                 const randomUsers = Math.floor(Math.random() * 10);
-                document.getElementById('onlineUsers').textContent = baseUsers + randomUsers;
+                const online = baseUsers + randomUsers;
+                document.getElementById('onlineUsers').textContent = online;
+                const gamesOnline = document.getElementById('onlineUsersGames');
+                if (gamesOnline) gamesOnline.textContent = online;
             }
         }
         
@@ -3692,11 +3829,29 @@
             await loadBalance();
             await loadHistory();
             await loadPlayerStats();
+            await checkBonusStatus();
             initPlinko();
             createRouletteStrip();
             createNumberButtons();
             console.log('✅ Приложение готово');
             updateStatus('💰 Ожидание начала игры...');
+        }
+        
+        async function checkBonusStatus() {
+            try {
+                const response = await fetch(`${API_URL}/api/user/claim_bonus`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                const data = await response.json();
+                
+                if (!data.success && data.secondsLeft) {
+                    startBonusTimer(data.secondsLeft);
+                }
+            } catch (error) {
+                console.error('Error checking bonus:', error);
+            }
         }
         
         initApp();
@@ -4076,6 +4231,10 @@
             resultEl.style.color = data.color === 'red' ? '#dc2626' : data.color === 'black' ? '#1a1a1a' : '#16a34a';
             resultEl.style.display = 'block';
             
+            // Очищаем историю ставок после результата
+            rouletteBetsHistory = [];
+            updateRouletteBets();
+            
             setTimeout(() => {
                 resultEl.style.display = 'none';
                 document.getElementById('rouletteBtn').disabled = false;
@@ -4139,6 +4298,9 @@
         let bonusInterval = null;
         
         async function claimBonus() {
+            const btn = document.getElementById('bonusBtn');
+            if (btn.disabled) return; // Если кнопка заблокирована - не даём нажать
+            
             try {
                 const response = await fetch(`${API_URL}/api/user/claim_bonus`, {
                     method: 'POST',
@@ -4151,11 +4313,11 @@
                     balance = data.balance;
                     updateBalance();
                     updateStatus(`🎁 Получено ${data.bonus} ⭐!`);
-                    startBonusTimer();
+                    startBonusTimer(3600); // Запускаем таймер на 1 час
                 } else {
                     updateStatus('❌ ' + data.error);
-                    if (data.minutesLeft) {
-                        startBonusTimer();
+                    if (data.secondsLeft) {
+                        startBonusTimer(data.secondsLeft);
                     }
                 }
             } catch (error) {
@@ -4164,16 +4326,25 @@
             }
         }
         
-        function startBonusTimer() {
-            document.getElementById('bonusBtn').disabled = true;
-            document.getElementById('bonusBtn').style.opacity = '0.5';
-            document.getElementById('bonusTimer').style.display = 'block';
+        function startBonusTimer(secondsLeft) {
+            const btn = document.getElementById('bonusBtn');
+            const timer = document.getElementById('bonusTimer');
             
-            let timeLeft = 60 * 60; // 1 час в секундах
+            // Блокируем кнопку
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.style.background = 'rgba(100, 100, 100, 0.3)';
+            timer.style.display = 'block';
             
-            bonusInterval = setInterval(() => {
-                timeLeft--;
-                
+            // Очищаем старый интервал если есть
+            if (bonusInterval) {
+                clearInterval(bonusInterval);
+            }
+            
+            let timeLeft = secondsLeft;
+            
+            const updateTimer = () => {
                 const hours = Math.floor(timeLeft / 3600);
                 const minutes = Math.floor((timeLeft % 3600) / 60);
                 const seconds = timeLeft % 60;
@@ -4183,14 +4354,57 @@
                 
                 if (timeLeft <= 0) {
                     clearInterval(bonusInterval);
-                    document.getElementById('bonusBtn').disabled = false;
-                    document.getElementById('bonusBtn').style.opacity = '1';
-                    document.getElementById('bonusTimer').style.display = 'none';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                    timer.style.display = 'none';
+                    bonusInterval = null;
                 }
+                
+                timeLeft--;
+            };
+            
+            updateTimer(); // Сразу обновляем
+            bonusInterval = setInterval(updateTimer, 1000);
             }, 1000);
         }
         
         // ============ АДМИН ============
+        async function toggleAdminUsersList() {
+            const listEl = document.getElementById('adminUsersList');
+            if (listEl.style.display === 'none') {
+                listEl.style.display = 'block';
+                await loadAdminUsersList();
+            } else {
+                listEl.style.display = 'none';
+            }
+        }
+        
+        async function loadAdminUsersList() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/get_users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_id: userId })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const listEl = document.getElementById('adminUsersList');
+                    listEl.innerHTML = data.users.map(user => `
+                        <div onclick="document.getElementById('adminTargetId').value='${user.user_id}'" style="padding: 8px; margin-bottom: 4px; background: rgba(139, 92, 246, 0.1); border-radius: 6px; cursor: pointer; border: 1px solid rgba(139, 92, 246, 0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
+                            <div style="font-weight: bold; color: #8b5cf6; font-size: 0.9em;">${user.username || 'Игрок'}</div>
+                            <div style="font-size: 0.75em; color: rgba(255,255,255,0.5);">ID: ${user.user_id}</div>
+                            <div style="font-size: 0.75em; color: rgba(255,255,255,0.6);">Баланс: ${user.balance} ⭐</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+        
         async function adminGiveCurrency() {
             const targetId = document.getElementById('adminTargetId').value;
             const amount = parseInt(document.getElementById('adminAmount').value);
@@ -4213,13 +4427,52 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    updateStatus(`✅ Выдано ${amount} ⭐ игроку ${targetId}`);
+                    updateStatus(`✅ Выдано ${amount} ⭐ игроку ${targetId.substring(0, 8)}...`);
                     document.getElementById('adminTargetId').value = '';
+                    if (document.getElementById('adminUsersList').style.display === 'block') {
+                        loadAdminUsersList();
+                    }
                 } else {
                     updateStatus('❌ ' + data.error);
                 }
             } catch (error) {
                 console.error('Error giving currency:', error);
+                updateStatus('❌ Ошибка сервера');
+            }
+        }
+        
+        async function adminTakeCurrency() {
+            const targetId = document.getElementById('adminTargetId').value;
+            const amount = parseInt(document.getElementById('adminAmount').value);
+            
+            if (!targetId || !amount) {
+                updateStatus('❌ Заполните все поля');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/admin/give_currency`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        admin_id: userId,
+                        target_user_id: targetId,
+                        amount: -amount
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus(`✅ Забрано ${amount} ⭐ у игрока ${targetId.substring(0, 8)}...`);
+                    document.getElementById('adminTargetId').value = '';
+                    if (document.getElementById('adminUsersList').style.display === 'block') {
+                        loadAdminUsersList();
+                    }
+                } else {
+                    updateStatus('❌ ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error taking currency:', error);
                 updateStatus('❌ Ошибка сервера');
             }
         }
@@ -4270,43 +4523,77 @@
                 const isTop3 = index < 3;
                 const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
                 const value = type === 'balance' ? `${player.balance} ⭐` : `${player.total_wins} 🏆`;
+                const displayName = player.username || 'Игрок';
                 
-                // Градиенты для топ-3
-                let bgGradient, borderColor, glowColor, medalSize;
+                // Разные цвета для топ-3
+                let bgGradient, borderColor, glowColor, medalSize, textColor;
                 if (index === 0) {
-                    bgGradient = 'linear-gradient(135deg, rgba(255, 215, 0, 0.25) 0%, rgba(218, 165, 32, 0.15) 100%)';
-                    borderColor = '2px solid rgba(255, 215, 0, 0.6)';
-                    glowColor = '0 0 20px rgba(255, 215, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.2)';
+                    // Золото
+                    bgGradient = 'linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 193, 7, 0.2) 100%)';
+                    borderColor = '2px solid rgba(255, 215, 0, 0.7)';
+                    glowColor = '0 0 25px rgba(255, 215, 0, 0.5), 0 0 50px rgba(255, 215, 0, 0.3)';
                     medalSize = '2em';
+                    textColor = '#ffd700';
                 } else if (index === 1) {
-                    bgGradient = 'linear-gradient(135deg, rgba(192, 192, 192, 0.25) 0%, rgba(169, 169, 169, 0.15) 100%)';
-                    borderColor = '2px solid rgba(192, 192, 192, 0.6)';
-                    glowColor = '0 0 15px rgba(192, 192, 192, 0.3), 0 0 30px rgba(192, 192, 192, 0.15)';
+                    // Серебро
+                    bgGradient = 'linear-gradient(135deg, rgba(192, 192, 192, 0.3) 0%, rgba(169, 169, 169, 0.2) 100%)';
+                    borderColor = '2px solid rgba(192, 192, 192, 0.7)';
+                    glowColor = '0 0 20px rgba(192, 192, 192, 0.4), 0 0 40px rgba(192, 192, 192, 0.2)';
                     medalSize = '1.8em';
+                    textColor = '#c0c0c0';
                 } else if (index === 2) {
-                    bgGradient = 'linear-gradient(135deg, rgba(205, 127, 50, 0.25) 0%, rgba(184, 115, 51, 0.15) 100%)';
-                    borderColor = '2px solid rgba(205, 127, 50, 0.6)';
-                    glowColor = '0 0 15px rgba(205, 127, 50, 0.3), 0 0 30px rgba(205, 127, 50, 0.15)';
+                    // Бронза
+                    bgGradient = 'linear-gradient(135deg, rgba(205, 127, 50, 0.3) 0%, rgba(184, 115, 51, 0.2) 100%)';
+                    borderColor = '2px solid rgba(205, 127, 50, 0.7)';
+                    glowColor = '0 0 20px rgba(205, 127, 50, 0.4), 0 0 40px rgba(205, 127, 50, 0.2)';
                     medalSize = '1.6em';
+                    textColor = '#cd7f32';
                 } else {
                     bgGradient = isCurrentUser ? 'rgba(59, 130, 246, 0.2)' : 'rgba(30, 35, 45, 0.6)';
                     borderColor = isCurrentUser ? '2px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(59, 130, 246, 0.2)';
                     glowColor = 'none';
                     medalSize = '1.2em';
+                    textColor = isCurrentUser ? '#3b82f6' : 'white';
                 }
                 
-                return `<div class="leaderboard-item ${isTop3 ? 'top3-glow' : ''}" style="display: flex; justify-content: space-between; align-items: center; padding: ${isTop3 ? '15px' : '12px'}; background: ${bgGradient}; border-radius: ${isTop3 ? '15px' : '10px'}; border: ${borderColor}; box-shadow: ${glowColor}; position: relative; overflow: hidden; transition: all 0.3s ease;">
+                const glowClass = index === 0 ? 'top1-glow' : index === 1 ? 'top2-glow' : index === 2 ? 'top3-glow' : '';
+                
+                return `<div class="leaderboard-item ${glowClass}" style="display: flex; justify-content: space-between; align-items: center; padding: ${isTop3 ? '15px' : '12px'}; background: ${bgGradient}; border-radius: ${isTop3 ? '15px' : '10px'}; border: ${borderColor}; position: relative; overflow: hidden; transition: all 0.3s ease;">
                     ${isTop3 ? '<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%); animation: shine 3s infinite;"></div>' : ''}
                     <div style="display: flex; align-items: center; gap: ${isTop3 ? '15px' : '10px'}; position: relative; z-index: 1;">
-                        <span style="font-size: ${medalSize}; min-width: ${isTop3 ? '45px' : '35px'}; text-align: center; ${isTop3 ? 'filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));' : ''}">${medal}</span>
+                        <span style="font-size: ${medalSize}; min-width: ${isTop3 ? '45px' : '35px'}; text-align: center; ${isTop3 ? 'filter: drop-shadow(0 0 10px ' + textColor + ');' : ''}">${medal}</span>
                         <div>
-                            <div style="font-weight: bold; color: ${isTop3 ? '#fff' : isCurrentUser ? '#3b82f6' : 'white'}; font-size: ${isTop3 ? '1.1em' : '1em'}; ${isTop3 ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.5);' : ''}">ID: ${player.user_id.substring(0, 8)}...</div>
-                            <div style="font-size: 0.85em; color: rgba(255,255,255,0.7);">Игр: ${player.total_games}</div>
+                            <div style="font-weight: bold; color: ${isTop3 ? textColor : textColor}; font-size: ${isTop3 ? '1.1em' : '1em'}; ${isTop3 ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.7);' : ''}">${displayName}</div>
+                            <div style="font-size: 0.85em; color: rgba(255,255,255,0.6);">Игр: ${player.total_games}</div>
                         </div>
                     </div>
-                    <div style="font-weight: bold; color: ${isTop3 ? '#fff' : '#3b82f6'}; font-size: ${isTop3 ? '1.3em' : '1.1em'}; position: relative; z-index: 1; ${isTop3 ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.5);' : ''}">${value}</div>
+                    <div style="font-weight: bold; color: ${isTop3 ? textColor : '#3b82f6'}; font-size: ${isTop3 ? '1.3em' : '1.1em'}; position: relative; z-index: 1; ${isTop3 ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.7);' : ''}">${value}</div>
                 </div>`;
             }).join('');
+        }
+        
+        // Лента выигрышей
+        async function loadWinsFeed() {
+            try {
+                const response = await fetch(`${API_URL}/api/wins_feed`);
+                const data = await response.json();
+                
+                if (data.success && data.wins.length > 0) {
+                    const feedEl = document.getElementById('winsFeed');
+                    const items = data.wins.map(win => {
+                        const gameIcon = win.game === 'crash' ? '🚀' : win.game === 'plinko' ? '🎯' : '🎰';
+                        return `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(34, 197, 94, 0.15); border-radius: 20px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                            <span style="font-size: 1.1em;">${gameIcon}</span>
+                            <span style="font-size: 0.85em; font-weight: bold; color: white;">ID: ${win.user_id.substring(0, 6)}...</span>
+                            <span style="font-size: 0.9em; font-weight: bold; color: #22c55e;">${win.multiplier}x</span>
+                        </div>`;
+                    }).join('');
+                    // Дублируем для бесшовной прокрутки
+                    feedEl.innerHTML = items + items;
+                }
+            } catch (error) {
+                console.error('Error loading wins feed:', error);
+            }
         }
         
         // Применение темы Telegram
@@ -4314,3 +4601,4 @@
     </script>
 </body>
 </html>
+

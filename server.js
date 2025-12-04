@@ -41,6 +41,7 @@ async function initDatabase() {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 user_id TEXT PRIMARY KEY,
+                username TEXT DEFAULT 'Игрок',
                 balance INTEGER DEFAULT 100,
                 total_games INTEGER DEFAULT 0,
                 total_wins INTEGER DEFAULT 0,
@@ -50,6 +51,11 @@ async function initDatabase() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+        
+        // Добавляем колонку username если её нет
+        await pool.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT DEFAULT 'Игрок'
         `);
 
         await pool.query(`
@@ -90,11 +96,18 @@ app.use((req, res, next) => {
 app.post('/api/user/get', async (req, res) => {
     try {
         const userId = req.body.user_id || 'demo';
+        const username = req.body.username || 'Игрок';
         
         let user = await pool.query('SELECT * FROM users WHERE user_id = $1', [userId]);
         
         if (user.rows.length === 0) {
-            await pool.query('INSERT INTO users (user_id, balance) VALUES ($1, $2)', [userId, 100]);
+            await pool.query('INSERT INTO users (user_id, username, balance) VALUES ($1, $2, $3)', [userId, username, 100]);
+        } else {
+            // Обновляем username при каждом входе
+            await pool.query('UPDATE users SET username = $1 WHERE user_id = $2', [username, userId]);
+        }
+        
+        if (user.rows.length === 0) {
             
             return res.json({
                 balance: 100,
@@ -592,10 +605,17 @@ app.post('/api/user/claim_bonus', async (req, res) => {
         const now = new Date();
         
         if (lastClaim) {
-            const hoursSince = (now - new Date(lastClaim)) / (1000 * 60 * 60);
-            if (hoursSince < 1) {
-                const minutesLeft = Math.ceil((1 - hoursSince) * 60);
-                return res.json({ success: false, error: 'Бонус доступен через ' + minutesLeft + ' мин', minutesLeft });
+            const secondsSince = (now - new Date(lastClaim)) / 1000;
+            const hourInSeconds = 3600;
+            
+            if (secondsSince < hourInSeconds) {
+                const secondsLeft = Math.ceil(hourInSeconds - secondsSince);
+                const minutesLeft = Math.ceil(secondsLeft / 60);
+                return res.json({ 
+                    success: false, 
+                    error: 'Бонус доступен через ' + minutesLeft + ' мин', 
+                    secondsLeft: secondsLeft 
+                });
             }
         }
         
@@ -658,11 +678,11 @@ app.post('/api/leaderboard', async (req, res) => {
         let query;
         
         if (type === 'balance') {
-            query = 'SELECT user_id, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 50';
+            query = 'SELECT user_id, username, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 50';
         } else if (type === 'wins') {
-            query = 'SELECT user_id, balance, total_games, total_wins FROM users ORDER BY total_wins DESC LIMIT 50';
+            query = 'SELECT user_id, username, balance, total_games, total_wins FROM users ORDER BY total_wins DESC LIMIT 50';
         } else {
-            query = 'SELECT user_id, balance, total_games, total_wins FROM users ORDER BY total_games DESC LIMIT 50';
+            query = 'SELECT user_id, username, balance, total_games, total_wins FROM users ORDER BY total_games DESC LIMIT 50';
         }
         
         const result = await pool.query(query);
@@ -671,6 +691,26 @@ app.post('/api/leaderboard', async (req, res) => {
     } catch (error) {
         console.error('Error getting leaderboard:', error);
         res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// API: Лента выигрышей
+app.get('/api/wins_feed', async (req, res) => {
+    try {
+        // Получаем последние 10 выигрышей с множителем > 2x
+        const query = `
+            SELECT user_id, game_type as game, multiplier, created_at 
+            FROM game_history 
+            WHERE multiplier >= 2 AND win_amount > 0
+            ORDER BY created_at DESC 
+            LIMIT 10
+        `;
+        const result = await pool.query(query);
+        
+        res.json({ success: true, wins: result.rows });
+    } catch (error) {
+        console.error('Error getting wins feed:', error);
+        res.json({ success: true, wins: [] }); // Возвращаем пустой массив если таблицы нет
     }
 });
 
