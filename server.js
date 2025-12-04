@@ -267,13 +267,13 @@ function generateCrashPoint() {
 }
 
 function startServerGame() {
-    // Фаза приема ставок (10 секунд)
+    // Фаза приема ставок (20 секунд, последние 5 - обратный отсчет)
     currentGameState.phase = 'betting';
-    currentGameState.timer = 10;
+    currentGameState.timer = 20;
     currentGameState.players = [];
     
-    console.log('💰 Прием ставок начался');
-    io.emit('betting_phase', { timer: 10 });
+    console.log('💰 Прием ставок начался (20 секунд)');
+    io.emit('betting_phase', { timer: 20 });
     
     bettingTimer = setInterval(() => {
         currentGameState.timer--;

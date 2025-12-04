@@ -1133,14 +1133,15 @@
         
         .multiplier {
             position: absolute;
-            top: 50%;
+            top: 30%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 4.5em;
+            transform: translateX(-50%);
+            font-size: 3em;
             font-weight: bold;
-            text-shadow: 0 0 40px rgba(59, 130, 246, 0.9), 0 0 20px rgba(0, 0, 0, 0.8);
+            text-shadow: 0 0 30px rgba(59, 130, 246, 0.9), 0 0 15px rgba(0, 0, 0, 0.8);
             z-index: 50;
             color: #3b82f6;
+            pointer-events: none;
         }
         
         .multiplier.growing {
@@ -1399,9 +1400,10 @@
         </div>
         
         <div class="controls">
-            <input type="number" class="bet-input" id="betInput" placeholder="Введите ставку" min="10" value="100">
-            
-            <button class="btn btn-primary" id="playBtn" onclick="startGame()">🚀 Сделать ставку</button>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="number" class="bet-input" id="betInput" placeholder="Ставка" min="10" value="100" style="flex: 1; margin-bottom: 0;">
+                <button class="btn btn-primary" id="playBtn" onclick="startGame()" style="flex: 1; margin-bottom: 0;">🚀 Ставка</button>
+            </div>
             
             <div class="status" id="status">Сделайте ставку для начала игры</div>
             
@@ -1748,6 +1750,9 @@
             currentBet = bet;
             cashedOutAt = 0;
             hasBet = true;
+            
+            // Скрываем клавиатуру
+            document.getElementById('betInput').blur();
             
             document.getElementById('playBtn').disabled = true;
             document.getElementById('playBtn').textContent = '⏳ Ожидание...';
@@ -3420,21 +3425,24 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 graphPoints = [];
                 
+                // ВСЕГДА включаем кнопку ставки
                 document.getElementById('playBtn').disabled = false;
                 document.getElementById('playBtn').textContent = '🚀 Сделать ставку';
                 document.getElementById('playBtn').onclick = startGame;
                 document.getElementById('betInput').disabled = false;
+                document.getElementById('betInput').value = document.getElementById('betInput').value || '100';
+                
                 document.getElementById('multiplier').textContent = '1.00x';
                 document.getElementById('multiplier').style.fontSize = '4.5em';
                 document.getElementById('multiplier').style.color = '#3b82f6';
                 document.getElementById('multiplier').style.opacity = '1';
                 document.getElementById('multiplier').classList.remove('growing');
-                document.getElementById('crashText').classList.remove('show');
+                document.getElementById('crashText').style.display = 'none';
                 document.getElementById('rocket').classList.remove('crashed');
                 document.getElementById('rocket').style.bottom = '25px';
                 
                 updateStatus(`💰 Прием ставок: ${data.timer}с`);
-            }, 3000); // 3 секунды показываем краш
+            }, 3000);
         });
         
         socket.on('timer_update', (data) => {
@@ -3446,9 +3454,11 @@
                 multiplierEl.textContent = data.timer;
                 multiplierEl.classList.add('growing');
                 
-                // Блокируем ставки
-                document.getElementById('playBtn').disabled = true;
-                document.getElementById('betInput').disabled = true;
+                // Блокируем ставки за 5 секунд
+                if (!hasBet) {
+                    document.getElementById('playBtn').disabled = true;
+                    document.getElementById('betInput').disabled = true;
+                }
                 
                 updateStatus(`🚀 Запуск через ${data.timer}...`);
                 
@@ -3457,7 +3467,7 @@
                 setTimeout(() => {
                     multiplierEl.style.opacity = '1';
                 }, 300);
-            } else {
+            } else if (data.timer > 5) {
                 updateStatus(`💰 Прием ставок: ${data.timer}с`);
             }
         });
@@ -3489,6 +3499,7 @@
             const multiplierEl = document.getElementById('multiplier');
             multiplierEl.textContent = multiplier.toFixed(2) + 'x';
             multiplierEl.classList.add('growing');
+            multiplierEl.style.fontSize = '3em'; // Меньший размер
             
             if (multiplier < 2) multiplierEl.style.color = '#3b82f6';
             else if (multiplier < 5) multiplierEl.style.color = '#22c55e';
@@ -3529,9 +3540,13 @@
             
             document.getElementById('multiplier').classList.remove('growing');
             document.getElementById('multiplier').textContent = data.crashPoint.toFixed(2) + 'x';
+            document.getElementById('multiplier').style.fontSize = '4.5em';
+            document.getElementById('multiplier').style.color = '#ef4444';
             document.getElementById('rocket').classList.add('crashed');
-            document.getElementById('crashText').textContent = `💥 ${data.crashPoint.toFixed(2)}x`;
-            document.getElementById('crashText').classList.add('show');
+            
+            // Убираем дублирующийся текст краша
+            const crashText = document.getElementById('crashText');
+            crashText.style.display = 'none';
             
             if (hasBet && cashedOutAt === 0) {
                 updateStatus(`💥 Краш на ${data.crashPoint.toFixed(2)}x! Вы проиграли ${currentBet} ⭐`);
