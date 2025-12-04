@@ -1749,10 +1749,6 @@
             cashedOutAt = 0;
             hasBet = true;
             
-            // Добавляем игрока в список
-            const userName = tg.initDataUnsafe?.user?.first_name || 'Игрок';
-            addPlayer(userName, bet);
-            
             document.getElementById('playBtn').disabled = true;
             document.getElementById('playBtn').textContent = '⏳ Ожидание...';
             document.getElementById('betInput').disabled = true;
@@ -3375,13 +3371,40 @@
         // WebSocket события
         socket.on('connect', () => {
             console.log('✅ Подключено к серверу');
+            updateStatus('✅ Подключено к серверу');
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('❌ Ошибка подключения:', error);
+            updateStatus('❌ Ошибка подключения к серверу');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('⚠️ Отключено от сервера');
+            updateStatus('⚠️ Переподключение...');
         });
         
         socket.on('game_state', (state) => {
             console.log('📊 Состояние игры:', state);
-            if (state.phase === 'flying') {
+            
+            if (state.phase === 'betting') {
+                updateStatus(`💰 Прием ставок: ${state.timer}с`);
+                document.getElementById('playBtn').disabled = false;
+            } else if (state.phase === 'flying') {
                 serverGameActive = true;
                 serverMultiplier = state.multiplier;
+                updateStatus('🚀 Полет!');
+                
+                if (hasBet) {
+                    document.getElementById('playBtn').disabled = false;
+                    document.getElementById('playBtn').textContent = '💰 Забрать выигрыш';
+                }
+            }
+            
+            // Обновляем список игроков
+            if (state.players && state.players.length > 0) {
+                currentPlayers = state.players.filter(p => p.userId !== userId);
+                updatePlayersList();
             }
         });
         
@@ -3485,11 +3508,18 @@
         });
         
         // Загрузка при старте
-        loadBalance();
-        loadHistory();
-        loadPlayerStats();
-        generateWheel(66); // Генерируем колесо апгрейда по умолчанию
-        initPlinko(); // Инициализируем Plinko
+        async function initApp() {
+            console.log('🚀 Инициализация приложения');
+            await loadBalance();
+            await loadHistory();
+            await loadPlayerStats();
+            generateWheel(66);
+            initPlinko();
+            console.log('✅ Приложение готово');
+            updateStatus('💰 Ожидание начала игры...');
+        }
+        
+        initApp();
         
         // Обновление онлайн пользователей каждые 10 секунд
         setInterval(updateOnlineUsers, 10000);
