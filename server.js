@@ -406,6 +406,53 @@ io.on('connection', (socket) => {
         }
     });
     
+    // Ставка на рулетку
+    socket.on('roulette_bet', async (data) => {
+        if (rouletteGameState.phase !== 'betting') {
+            socket.emit('roulette_error', { message: 'Ставки закрыты!' });
+            return;
+        }
+        
+        const { userId, amount, type, name } = data;
+        
+        // Проверяем баланс
+        try {
+            const result = await pool.query('SELECT balance FROM users WHERE user_id = $1', [userId]);
+            if (result.rows.length === 0 || result.rows[0].balance < amount) {
+                socket.emit('roulette_error', { message: 'Недостаточно средств!' });
+                return;
+            }
+            
+            // Списываем ставку
+            await pool.query('UPDATE users SET balance = balance - $1 WHERE user_id = $2', [amount, userId]);
+            
+            // Добавляем ставку
+            const bet = {
+                userId,
+                socketId: socket.id,
+                name,
+                amount,
+                type
+            };
+            
+            rouletteGameState.bets.push(bet);
+            
+            // Отправляем всем игрокам информацию о ставке
+            io.emit('roulette_bet_placed', {
+                name,
+                amount,
+                type
+            });
+            
+            console.log(`🎰 ${name} поставил ${amount} ⭐ на ${type}`);
+            
+            socket.emit('roulette_bet_success', { balance: result.rows[0].balance - amount });
+        } catch (error) {
+            console.error('Ошибка ставки на рулетку:', error);
+            socket.emit('roulette_error', { message: 'Ошибка сервера' });
+        }
+    });
+    
     // Отключение
     socket.on('disconnect', () => {
         console.log('👋 Игрок отключился:', socket.id);
@@ -415,6 +462,218 @@ io.on('connection', (socket) => {
     });
 });
 
+// ============ РУЛЕТКА ============
+const rouletteNumbers = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, '00', 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2];
+const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+const blackNumbers = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35];
+
+let rouletteGameState = {
+    phase: 'betting', // betting, countdown, spinning, result
+    timer: 25,
+    resultNumber: null,
+    bets: []
+};
+
+function getNumberColor(num) {
+    if (num === 0 || num === '00') return 'green';
+    if (redNumbers.includes(num)) return 'red';
+    return 'black';
+}
+
+function generateRouletteResult() {
+    return rouletteNumbers[Math.floor(Math.random() * rouletteNumbers.length)];
+}
+
+function startRouletteGame() {
+    // Фаза 1: Прием ставок (25 секунд)
+    rouletteGameState.phase = 'betting';
+    rouletteGameState.timer = 25;
+    rouletteGameState.bets = [];
+    rouletteGameState.resultNumber = null;
+    
+    io.emit('roulette_state', rouletteGameState);
+    
+    const bettingInterval = setInterval(() => {
+        rouletteGameState.timer--;
+        
+        if (rouletteGameState.timer === 5) {
+            // За 5 секунд до конца - обратный отсчет
+            rouletteGameState.phase = 'countdown';
+            io.emit('roulette_state', rouletteGameState);
+        }
+        
+        if (rouletteGameState.timer > 0) {
+            io.emit('roulette_timer', { timer: rouletteGameState.timer });
+        } else {
+            clearInterval(bettingInterval);
+            spinRoulette();
+        }
+    }, 1000);
+}
+
+function spinRoulette() {
+    // Фаза 2: Вращение (4 секунды)
+    rouletteGameState.phase = 'spinning';
+    rouletteGameState.resultNumber = generateRouletteResult();
+    
+    io.emit('roulette_spin', { resultNumber: rouletteGameState.resultNumber });
+    
+    console.log(`🎰 Рулетка крутится... Результат: ${rouletteGameState.resultNumber}`);
+    
+    setTimeout(() => {
+        showRouletteResult();
+    }, 4000);
+}
+
+async function showRouletteResult() {
+    // Фаза 3: Результат (3 секунды)
+    rouletteGameState.phase = 'result';
+    
+    const resultColor = getNumberColor(rouletteGameState.resultNumber);
+    
+    console.log(`✅ Выпало: ${rouletteGameState.resultNumber} (${resultColor})`);
+    
+    // Обрабатываем ставки
+    for (const bet of rouletteGameState.bets) {
+        const won = (bet.type === 'red' && resultColor === 'red') || 
+                    (bet.type === 'black' && resultColor === 'black') || 
+                    (bet.type == rouletteGameState.resultNumber); // == для сравнения 0 и '00'
+        
+        if (won) {
+            let winAmount = 0;
+            if (bet.type === 'red' || bet.type === 'black') {
+                winAmount = bet.amount * 2;
+            } else {
+                // Ставка на конкретное число (включая 0 и 00)
+                winAmount = bet.amount * 36;
+            }
+            
+            try {
+                await pool.query(
+                    'UPDATE users SET balance = balance + $1 WHERE user_id = $2',
+                    [winAmount, bet.userId]
+                );
+                
+                console.log(`💰 ${bet.name} выиграл ${winAmount} ⭐`);
+                
+                io.to(bet.socketId).emit('roulette_win', {
+                    amount: winAmount,
+                    number: rouletteGameState.resultNumber
+                });
+            } catch (error) {
+                console.error('Ошибка начисления выигрыша:', error);
+            }
+        }
+    }
+    
+    io.emit('roulette_result', {
+        number: rouletteGameState.resultNumber,
+        color: resultColor
+    });
+    
+    // Через 3 секунды начинаем новую игру
+    setTimeout(() => {
+        startRouletteGame();
+    }, 3000);
+}
+
+// API: Получить бонус (раз в час)
+app.post('/api/user/claim_bonus', async (req, res) => {
+    try {
+        const userId = req.body.user_id || 'demo';
+        
+        const user = await pool.query('SELECT last_bonus_claim FROM users WHERE user_id = $1', [userId]);
+        
+        if (user.rows.length === 0) {
+            return res.json({ success: false, error: 'Пользователь не найден' });
+        }
+        
+        const lastClaim = user.rows[0].last_bonus_claim;
+        const now = new Date();
+        
+        if (lastClaim) {
+            const hoursSince = (now - new Date(lastClaim)) / (1000 * 60 * 60);
+            if (hoursSince < 1) {
+                const minutesLeft = Math.ceil((1 - hoursSince) * 60);
+                return res.json({ success: false, error: 'Бонус доступен через ' + minutesLeft + ' мин', minutesLeft });
+            }
+        }
+        
+        await pool.query(
+            'UPDATE users SET balance = balance + 5000, last_bonus_claim = CURRENT_TIMESTAMP WHERE user_id = $1',
+            [userId]
+        );
+        
+        const updated = await pool.query('SELECT balance FROM users WHERE user_id = $1', [userId]);
+        
+        res.json({ success: true, balance: updated.rows[0].balance, bonus: 5000 });
+    } catch (error) {
+        console.error('Error claiming bonus:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// API: Админ - выдать валюту
+app.post('/api/admin/give_currency', async (req, res) => {
+    try {
+        const adminId = req.body.admin_id;
+        const targetUserId = req.body.target_user_id;
+        const amount = parseInt(req.body.amount);
+        
+        if (adminId !== '840879061') {
+            return res.json({ success: false, error: 'Нет прав' });
+        }
+        
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE user_id = $2', [amount, targetUserId]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error giving currency:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// API: Админ - получить список игроков
+app.post('/api/admin/get_users', async (req, res) => {
+    try {
+        const adminId = req.body.admin_id;
+        
+        if (adminId !== '840879061') {
+            return res.json({ success: false, error: 'Нет прав' });
+        }
+        
+        const users = await pool.query('SELECT user_id, balance, total_games FROM users ORDER BY balance DESC LIMIT 100');
+        
+        res.json({ success: true, users: users.rows });
+    } catch (error) {
+        console.error('Error getting users:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// API: Получить топ игроков
+app.post('/api/leaderboard', async (req, res) => {
+    try {
+        const type = req.body.type || 'balance';
+        let query;
+        
+        if (type === 'balance') {
+            query = 'SELECT user_id, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 50';
+        } else if (type === 'wins') {
+            query = 'SELECT user_id, balance, total_games, total_wins FROM users ORDER BY total_wins DESC LIMIT 50';
+        } else {
+            query = 'SELECT user_id, balance, total_games, total_wins FROM users ORDER BY total_games DESC LIMIT 50';
+        }
+        
+        const result = await pool.query(query);
+        
+        res.json({ success: true, leaderboard: result.rows });
+    } catch (error) {
+        console.error('Error getting leaderboard:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // Запуск сервера
 server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Сервер запущен на порту ${PORT}`);
@@ -422,6 +681,15 @@ server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🔌 WebSocket готов для синхронизации игроков`);
     try {
         await initDatabase();
+        
+        // Добавляем колонку last_bonus_claim если её нет
+        await pool.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_bonus_claim TIMESTAMP
+        `);
+        
+        // Запускаем рулетку
+        startRouletteGame();
+        console.log('🎰 Рулетка запущена!');
     } catch (error) {
         console.error('❌ Критическая ошибка при инициализации:', error);
     }

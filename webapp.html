@@ -29,6 +29,20 @@
             overflow: hidden;
         }
         
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.3); }
+        }
+        
+        .leaderboard-item.top3-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
         .container {
             max-width: 480px;
             width: 100%;
@@ -1450,13 +1464,85 @@
             </div>
         </div>
         
-        <div id="upgradePage" style="display: none; height: calc(100vh - 60px); background: #0f1419;">
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px;">
-                <div style="font-size: 5em; margin-bottom: 20px; opacity: 0.3;">🔒</div>
-                <h1 style="font-size: 2em; margin-bottom: 10px; color: rgba(255, 255, 255, 0.8);">Скоро</h1>
-                <p style="text-align: center; color: rgba(255, 255, 255, 0.5); font-size: 1.1em; max-width: 300px;">
-                    Здесь появится новая игра.<br>Следите за обновлениями!
-                </p>
+        <div id="upgradePage" style="display: none; height: calc(100vh - 60px); overflow: hidden; background: #0f1419;">
+            <h1 style="text-align: center; margin: 10px 0; font-size: 1.4em;">🎰 Рулетка</h1>
+            
+            <div style="display: flex; flex-direction: column; height: calc(100% - 50px); padding: 10px;">
+                <!-- Линейная рулетка -->
+                <div style="height: 120px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 8px; background-image: url('sea2.gif'); background-size: cover; background-position: center; border-radius: 12px; border: 2px solid rgba(59, 130, 246, 0.3); overflow: hidden;">
+                    <!-- Затемнение фона -->
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); z-index: 1;"></div>
+                    
+                    <!-- Бегущая строка с числами -->
+                    <div id="rouletteStrip" style="position: absolute; display: flex; white-space: nowrap; transition: left 4s cubic-bezier(0.25, 0.1, 0.25, 1); z-index: 2;"></div>
+                    
+                    <!-- Размытие по краям (туман) -->
+                    <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 100px; background: linear-gradient(to right, rgba(15, 15, 30, 0.9), transparent); z-index: 5; pointer-events: none;"></div>
+                    <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 100px; background: linear-gradient(to left, rgba(15, 15, 30, 0.9), transparent); z-index: 5; pointer-events: none;"></div>
+                    
+                    <!-- Стрелка вверху -->
+                    <div style="position: absolute; width: 4px; height: 100%; background: linear-gradient(to bottom, transparent, #fbbf24, transparent); z-index: 10; box-shadow: 0 0 20px rgba(251, 191, 36, 0.8);"></div>
+                    <div style="position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%); font-size: 3em; z-index: 11; color: #fbbf24; filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));">▼</div>
+                    
+                    <!-- Результат -->
+                    <div id="rouletteResult" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 2em; font-weight: bold; color: white; text-shadow: 0 0 20px rgba(0,0,0,0.8); display: none; z-index: 12; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 10px;"></div>
+                </div>
+                
+                <!-- Таймер -->
+                <div id="rouletteTimer" style="text-align: center; padding: 6px; background: rgba(255, 193, 7, 0.1); border-radius: 6px; margin-bottom: 6px; font-size: 0.9em; font-weight: bold; border: 1px solid rgba(255, 193, 7, 0.2);">
+                    Ожидание...
+                </div>
+                
+                <!-- Ставка и кнопка -->
+                <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                    <input type="number" id="rouletteBetInput" placeholder="Ставка" min="10" value="50" style="width: 80px; padding: 6px; border: 2px solid rgba(59, 130, 246, 0.4); border-radius: 6px; background: rgba(30, 35, 45, 0.6); color: #3b82f6; font-weight: bold; text-align: center; font-size: 0.9em;">
+                    <button onclick="placeRouletteBet()" id="rouletteBtn" style="flex: 1; padding: 6px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 0.9em;">
+                        🎰 Ставка
+                    </button>
+                </div>
+                
+                <!-- Выбор (компактно) -->
+                <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-bottom: 6px; max-height: 80px; overflow-y: auto; padding: 4px; background: rgba(30, 35, 45, 0.4); border-radius: 6px;">
+                    <button onclick="selectRouletteBet('red')" class="roulette-bet-btn" data-type="red" style="padding: 6px 4px; background: #dc2626; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">🔴</button>
+                    <button onclick="selectRouletteBet('black')" class="roulette-bet-btn" data-type="black" style="padding: 6px 4px; background: #1a1a1a; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">⚫</button>
+                    <button onclick="selectRouletteBet(0)" class="roulette-bet-btn" data-type="0" style="padding: 6px 4px; background: #16a34a; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">0</button>
+                    <button onclick="selectRouletteBet('00')" class="roulette-bet-btn" data-type="00" style="padding: 6px 4px; background: #16a34a; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">00</button>
+                    <button onclick="selectRouletteBet(1)" class="roulette-bet-btn" data-type="1" style="padding: 6px 4px; background: #dc2626; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">1</button>
+                    <button onclick="selectRouletteBet(2)" class="roulette-bet-btn" data-type="2" style="padding: 6px 4px; background: #1a1a1a; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">2</button>
+                    <button onclick="selectRouletteBet(3)" class="roulette-bet-btn" data-type="3" style="padding: 6px 4px; background: #dc2626; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">3</button>
+                    <button onclick="selectRouletteBet(4)" class="roulette-bet-btn" data-type="4" style="padding: 6px 4px; background: #1a1a1a; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;">4</button>
+                </div>
+                
+                <div style="display: flex; gap: 4px; padding: 8px; background: rgba(30, 35, 45, 0.4); border-radius: 8px; overflow-x: auto; margin-bottom: 8px;">
+                    <div id="rouletteHistory" style="display: flex; gap: 4px;"></div>
+                </div>
+                
+                <div style="flex: 1; background: rgba(30, 35, 45, 0.4); border-radius: 8px; padding: 8px; overflow-y: auto; max-height: 150px;">
+                    <div id="rouletteBets" style="font-size: 0.85em;">
+                        <div style="text-align: center; color: rgba(255,255,255,0.4); padding: 10px;">
+                            История ставок появится здесь
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="ratingPage" style="display: none; height: calc(100vh - 60px); overflow-y: auto; padding: 15px; padding-bottom: 20px; background: #0f1419;">
+            <h1 style="text-align: center; margin-bottom: 15px; font-size: 1.6em;">🏆 Рейтинг</h1>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button onclick="loadLeaderboard('balance')" id="ratingBalance" class="rating-tab" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                    💰 По балансу
+                </button>
+                <button onclick="loadLeaderboard('wins')" id="ratingWins" class="rating-tab" style="flex: 1; padding: 10px; background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(59, 130, 246, 0.3); border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                    🏆 По победам
+                </button>
+            </div>
+            
+            <div id="leaderboardList" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="text-align: center; color: rgba(255,255,255,0.4); padding: 40px;">
+                    Загрузка рейтинга...
+                </div>
             </div>
         </div>
         
@@ -1497,6 +1583,24 @@
                     <span id="avgMultiplier">0.00x</span>
                 </div>
             </div>
+            
+            <!-- Кнопка бонуса -->
+            <button onclick="claimBonus()" id="bonusBtn" style="width: 100%; padding: 15px; margin-top: 15px; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1.1em; cursor: pointer; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);">
+                🎁 Получить бонус 5000 ⭐
+            </button>
+            <div id="bonusTimer" style="text-align: center; margin-top: 10px; color: rgba(255,255,255,0.6); font-size: 0.9em; display: none;">
+                Следующий бонус через: <span id="bonusTimeLeft"></span>
+            </div>
+            
+            <!-- Админ панель -->
+            <div id="adminPanel" style="display: none; margin-top: 20px; padding: 15px; background: rgba(139, 92, 246, 0.1); border: 2px solid rgba(139, 92, 246, 0.3); border-radius: 12px;">
+                <h3 style="color: #8b5cf6; margin-bottom: 10px;">👑 Админ панель</h3>
+                <input type="text" id="adminTargetId" placeholder="ID игрока" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 2px solid rgba(139, 92, 246, 0.4); border-radius: 8px; background: rgba(30, 35, 45, 0.6); color: white;">
+                <input type="number" id="adminAmount" placeholder="Сумма" value="1000" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 2px solid rgba(139, 92, 246, 0.4); border-radius: 8px; background: rgba(30, 35, 45, 0.6); color: white;">
+                <button onclick="adminGiveCurrency()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                    💰 Выдать валюту
+                </button>
+            </div>
         </div>
         
         <div class="bottom-nav">
@@ -1509,8 +1613,8 @@
                 <div>Plinko</div>
             </button>
             <button class="nav-btn" id="navUpgrade" onclick="switchTab('upgrade')">
-                <div class="nav-btn-icon">🎮</div>
-                <div>Скоро</div>
+                <div class="nav-btn-icon">�</div>
+                <div>Рулетка</div>
             </button>
             <button class="nav-btn" id="navProfile" onclick="switchTab('profile')">
                 <div class="nav-btn-icon">👤</div>
@@ -2174,11 +2278,13 @@
             const crashPage = document.getElementById('crashPage');
             const casesPage = document.getElementById('casesPage');
             const upgradePage = document.getElementById('upgradePage');
+            const ratingPage = document.getElementById('ratingPage');
             const profilePage = document.getElementById('profilePage');
             
             crashPage.style.display = 'none';
             casesPage.style.display = 'none';
             upgradePage.style.display = 'none';
+            ratingPage.style.display = 'none';
             profilePage.style.display = 'none';
             
             if (tab === 'crash') {
@@ -2190,6 +2296,10 @@
             } else if (tab === 'upgrade') {
                 document.getElementById('navUpgrade').classList.add('active');
                 upgradePage.style.display = 'block';
+            } else if (tab === 'rating') {
+                document.getElementById('navRating').classList.add('active');
+                ratingPage.style.display = 'block';
+                loadLeaderboard('balance');
             } else if (tab === 'profile') {
                 document.getElementById('navProfile').classList.add('active');
                 profilePage.style.display = 'block';
@@ -2341,6 +2451,11 @@
             document.getElementById('plinkoBtn').disabled = true;
             document.getElementById('plinkoResult').style.display = 'none';
             
+            // Блокируем кнопки режимов
+            document.getElementById('plinkoModeLow').disabled = true;
+            document.getElementById('plinkoModeMedium').disabled = true;
+            document.getElementById('plinkoModeHigh').disabled = true;
+            
             // Списываем ставку
             try {
                 const response = await fetch(`${API_URL}/api/game/place_bet`, {
@@ -2354,6 +2469,9 @@
                     updateStatus('❌ ' + data.error);
                     isDroppingBall = false;
                     document.getElementById('plinkoBtn').disabled = false;
+                    document.getElementById('plinkoModeLow').disabled = false;
+                    document.getElementById('plinkoModeMedium').disabled = false;
+                    document.getElementById('plinkoModeHigh').disabled = false;
                     return;
                 }
                 
@@ -2396,6 +2514,9 @@
             
             isDroppingBall = false;
             document.getElementById('plinkoBtn').disabled = false;
+            document.getElementById('plinkoModeLow').disabled = false;
+            document.getElementById('plinkoModeMedium').disabled = false;
+            document.getElementById('plinkoModeHigh').disabled = false;
         }
         
         function animateBall(ctx, width, height) {
@@ -3571,8 +3692,9 @@
             await loadBalance();
             await loadHistory();
             await loadPlayerStats();
-            generateWheel(66);
             initPlinko();
+            createRouletteStrip();
+            createNumberButtons();
             console.log('✅ Приложение готово');
             updateStatus('💰 Ожидание начала игры...');
         }
@@ -3595,6 +3717,597 @@
         
         // Начальное состояние
         updateStatus('💰 Ожидание ставок...');
+        
+        // ============ ЛИНЕЙНАЯ РУЛЕТКА ============
+        const rouletteNumbers = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, '00', 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2];
+        const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+        const blackNumbers = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35];
+        let rouletteHistory = [];
+        let rouletteBetsHistory = [];
+        let isRouletteSpinning = false;
+        let selectedRouletteBets = []; // Массив для множественных ставок
+        let roulettePhase = 'betting';
+        
+        function getNumberColor(num) {
+            if (num === 0 || num === '00') return 'green';
+            if (redNumbers.includes(num)) return 'red';
+            return 'black';
+        }
+        
+        function selectRouletteBet(type) {
+            // Проверяем есть ли уже эта ставка
+            const index = selectedRouletteBets.findIndex(b => b.type === type);
+            
+            if (index >= 0) {
+                // Убираем ставку
+                selectedRouletteBets.splice(index, 1);
+            } else {
+                // Добавляем ставку (максимум 3)
+                if (selectedRouletteBets.length >= 3) {
+                    updateStatus('❌ Максимум 3 ставки!');
+                    return;
+                }
+                selectedRouletteBets.push({ type, amount: 0 });
+            }
+            
+            // Обновляем UI
+            updateRouletteBetButtons();
+        }
+        
+        function updateRouletteBetButtons() {
+            document.querySelectorAll('.roulette-bet-btn').forEach(btn => {
+                const type = btn.getAttribute('data-type');
+                const isSelected = selectedRouletteBets.some(b => b.type == type);
+                
+                if (isSelected) {
+                    btn.style.borderColor = '#fbbf24';
+                    btn.style.transform = 'scale(1.05)';
+                } else {
+                    btn.style.borderColor = 'transparent';
+                    btn.style.transform = 'scale(1)';
+                }
+            });
+        }
+        
+        async function placeRouletteBet() {
+            if (roulettePhase !== 'betting') {
+                updateStatus('❌ Ставки закрыты!');
+                return;
+            }
+            
+            if (selectedRouletteBets.length === 0) {
+                updateStatus('❌ Выберите ставку!');
+                return;
+            }
+            
+            const betAmount = parseInt(document.getElementById('rouletteBetInput').value);
+            
+            if (betAmount < 10) {
+                updateStatus('❌ Минимальная ставка: 10 ⭐');
+                return;
+            }
+            
+            const totalAmount = betAmount * selectedRouletteBets.length;
+            
+            if (totalAmount > balance) {
+                updateStatus('❌ Недостаточно средств!');
+                return;
+            }
+            
+            const userName = tg.initDataUnsafe?.user?.first_name || 'Игрок';
+            
+            // Отправляем все ставки на сервер
+            for (const bet of selectedRouletteBets) {
+                socket.emit('roulette_bet', {
+                    userId: userId,
+                    amount: betAmount,
+                    type: bet.type,
+                    name: userName
+                });
+            }
+            
+            // Очищаем выбор
+            selectedRouletteBets = [];
+            updateRouletteBetButtons();
+        }
+        
+        // Создаем бегущую строку с числами
+        function createRouletteStrip() {
+            const strip = document.getElementById('rouletteStrip');
+            if (!strip) return;
+            
+            strip.innerHTML = '';
+            
+            // Создаем массив чисел (повторяем 10 раз для бесшовной прокрутки)
+            const repeatedNumbers = [];
+            for (let i = 0; i < 10; i++) {
+                repeatedNumbers.push(...rouletteNumbers);
+            }
+            
+            repeatedNumbers.forEach(num => {
+                const color = getNumberColor(num);
+                const bgColor = color === 'red' ? '#dc2626' : color === 'black' ? '#1a1a1a' : '#16a34a';
+                
+                const cell = document.createElement('div');
+                cell.style.cssText = `
+                    width: 50px;
+                    height: 60px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: ${bgColor};
+                    border-right: 2px solid #fbbf24;
+                    font-size: 1.5em;
+                    font-weight: bold;
+                    color: white;
+                    flex-shrink: 0;
+                    box-sizing: border-box;
+                `;
+                cell.textContent = num;
+                strip.appendChild(cell);
+            });
+        }
+        
+        // Создаем кнопки выбора чисел
+        function createNumberButtons() {
+            const container = document.querySelector('[style*="grid-template-columns: repeat(8, 1fr)"]');
+            if (!container) return;
+            
+            // Добавляем остальные числа (5-36)
+            for (let i = 5; i <= 36; i++) {
+                const color = getNumberColor(i);
+                const bgColor = color === 'red' ? '#dc2626' : '#1a1a1a';
+                
+                const btn = document.createElement('button');
+                btn.onclick = () => selectRouletteBet(i);
+                btn.className = 'roulette-bet-btn';
+                btn.setAttribute('data-type', i);
+                btn.style.cssText = `padding: 6px 4px; background: ${bgColor}; border: 2px solid transparent; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 0.75em;`;
+                btn.textContent = i;
+                container.appendChild(btn);
+            }
+        }
+        
+        function spinRouletteWheel(targetNumber, callback) {
+            const strip = document.getElementById('rouletteStrip');
+            if (!strip) return;
+            
+            const targetIndex = rouletteNumbers.indexOf(targetNumber);
+            
+            // Измеряем реальную ширину первой ячейки (50px + 2px border = 52px)
+            const firstCell = strip.children[0];
+            if (!firstCell) return;
+            const cellWidth = firstCell.offsetWidth;
+            
+            console.log('📏 Ширина ячейки:', cellWidth + 'px');
+            
+            // Находим позицию целевого числа в середине массива (5-й повтор)
+            const middleRepeat = 5;
+            const targetCellIndex = middleRepeat * rouletteNumbers.length + targetIndex;
+            
+            // Позиция левого края целевой ячейки
+            const targetCellLeft = targetCellIndex * cellWidth;
+            
+            // Центр целевой ячейки
+            const targetCellCenter = targetCellLeft + cellWidth / 2;
+            
+            // Центр контейнера
+            const container = strip.parentElement;
+            const containerCenter = container.offsetWidth / 2;
+            
+            // Финальная позиция strip.left чтобы центр ячейки совпал с центром контейнера
+            const finalPosition = containerCenter - targetCellCenter;
+            
+            console.log('🎯 Целевое число:', targetNumber, '(индекс', targetIndex + ')');
+            console.log('📍 Индекс ячейки:', targetCellIndex);
+            console.log('📐 Позиция ячейки:', targetCellLeft + 'px');
+            console.log('🎪 Центр ячейки:', targetCellCenter + 'px');
+            console.log('🏁 Финальная позиция:', finalPosition + 'px');
+            
+            // Начальная позиция (справа, за экраном)
+            const startPosition = container.offsetWidth;
+            
+            // Сбрасываем transition и устанавливаем начальную позицию
+            strip.style.transition = 'none';
+            strip.style.left = startPosition + 'px';
+            
+            // Запускаем анимацию через небольшую задержку
+            setTimeout(() => {
+                strip.style.transition = 'left 4s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                strip.style.left = finalPosition + 'px';
+                
+                // После остановки показываем результат
+                setTimeout(() => {
+                    console.log('✅ Результат:', targetNumber);
+                    console.log('✓ Совпадение!');
+                    
+                    if (callback) callback();
+                }, 4000);
+            }, 50);
+        }
+        
+        async function playRoulette() {
+            if (isRouletteSpinning) return;
+            
+            const betAmount = parseInt(document.getElementById('rouletteBetInput').value);
+            const betType = document.getElementById('rouletteBetType').value;
+            
+            if (betAmount < 10) {
+                updateStatus('❌ Минимальная ставка: 10 ⭐');
+                return;
+            }
+            
+            if (betAmount > balance) {
+                updateStatus('❌ Недостаточно средств!');
+                return;
+            }
+            
+            isRouletteSpinning = true;
+            document.getElementById('rouletteBtn').disabled = true;
+            balance -= betAmount;
+            updateBalance();
+            
+            const random = Math.random();
+            let resultNumber;
+            
+            if (betType === 'green') {
+                resultNumber = random < 0.0526 ? (random < 0.0263 ? 0 : '00') : (random < 0.5 ? redNumbers[Math.floor(Math.random() * redNumbers.length)] : blackNumbers[Math.floor(Math.random() * blackNumbers.length)]);
+            } else if (betType === 'red') {
+                resultNumber = random < 0.4737 ? redNumbers[Math.floor(Math.random() * redNumbers.length)] : (random < 0.9474 ? blackNumbers[Math.floor(Math.random() * blackNumbers.length)] : (random < 0.9737 ? 0 : '00'));
+            } else {
+                resultNumber = random < 0.4737 ? blackNumbers[Math.floor(Math.random() * blackNumbers.length)] : (random < 0.9474 ? redNumbers[Math.floor(Math.random() * redNumbers.length)] : (random < 0.9737 ? 0 : '00'));
+            }
+            
+            spinRouletteWheel(resultNumber, async () => {
+                const resultColor = getNumberColor(resultNumber);
+                const won = (betType === 'red' && resultColor === 'red') || (betType === 'black' && resultColor === 'black') || (betType === 'green' && resultColor === 'green');
+                
+                const resultEl = document.getElementById('rouletteResult');
+                resultEl.textContent = resultNumber;
+                resultEl.style.color = resultColor === 'red' ? '#dc2626' : resultColor === 'black' ? '#1a1a1a' : '#16a34a';
+                resultEl.style.display = 'block';
+                
+                setTimeout(() => {
+                    resultEl.style.display = 'none';
+                }, 3000);
+                
+                rouletteHistory.unshift(resultNumber);
+                if (rouletteHistory.length > 10) rouletteHistory.pop();
+                updateRouletteHistory();
+                
+                let winAmount = 0;
+                if (won) {
+                    winAmount = betType === 'green' ? betAmount * 18 : betAmount * 2;
+                    balance += winAmount;
+                    updateBalance();
+                    updateStatus(`🎉 Выпало ${resultNumber}! Выигрыш: ${winAmount} ⭐`);
+                } else {
+                    updateStatus(`😢 Выпало ${resultNumber}. Проигрыш: ${betAmount} ⭐`);
+                }
+                
+                const betInfo = {
+                    bet: betAmount,
+                    type: betType,
+                    result: resultNumber,
+                    won: won,
+                    winAmount: winAmount
+                };
+                rouletteBetsHistory.unshift(betInfo);
+                if (rouletteBetsHistory.length > 20) rouletteBetsHistory.pop();
+                updateRouletteBets();
+                
+                isRouletteSpinning = false;
+                document.getElementById('rouletteBtn').disabled = false;
+            });
+        }
+        
+        function updateRouletteHistory() {
+            const historyEl = document.getElementById('rouletteHistory');
+            historyEl.innerHTML = rouletteHistory.map(num => {
+                const color = getNumberColor(num);
+                const bgColor = color === 'red' ? '#dc2626' : color === 'black' ? '#1a1a1a' : '#16a34a';
+                return `<div style="min-width: 32px; height: 32px; background: ${bgColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.85em; border: 2px solid #fbbf24;">${num}</div>`;
+            }).join('');
+        }
+        
+        function updateRouletteBets() {
+            const betsEl = document.getElementById('rouletteBets');
+            if (rouletteBetsHistory.length === 0) {
+                betsEl.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.4); padding: 10px;">История ставок появится здесь</div>';
+                return;
+            }
+            
+            betsEl.innerHTML = rouletteBetsHistory.map(bet => {
+                let typeText;
+                let typeBg;
+                
+                if (bet.type === 'red') {
+                    typeText = '🔴';
+                    typeBg = '#dc2626';
+                } else if (bet.type === 'black') {
+                    typeText = '⚫';
+                    typeBg = '#1a1a1a';
+                } else {
+                    // Конкретное число
+                    const color = getNumberColor(bet.type);
+                    typeBg = color === 'red' ? '#dc2626' : color === 'black' ? '#1a1a1a' : '#16a34a';
+                    typeText = bet.type;
+                }
+                
+                const borderColor = bet.won === null ? 'rgba(59, 130, 246, 0.3)' : (bet.won ? '#22c55e' : '#ef4444');
+                
+                return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 4px; background: rgba(30, 35, 45, 0.6); border-radius: 6px; border-left: 3px solid ${borderColor};">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="min-width: 50px; padding: 4px 8px; background: ${typeBg}; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.75em; border: 1px solid #fbbf24;">${typeText}</div>
+                        <span style="font-weight: bold; color: rgba(255,255,255,0.9);">${bet.name}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="color: rgba(255,255,255,0.6);">${bet.amount} ⭐</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        // ============ WEBSOCKET РУЛЕТКА ============
+        socket.on('roulette_state', (state) => {
+            roulettePhase = state.phase;
+            updateRouletteTimer(state.timer, state.phase);
+        });
+        
+        socket.on('roulette_timer', (data) => {
+            updateRouletteTimer(data.timer, roulettePhase);
+        });
+        
+        socket.on('roulette_spin', (data) => {
+            isRouletteSpinning = true;
+            document.getElementById('rouletteBtn').disabled = true;
+            spinRouletteWheel(data.resultNumber, () => {
+                isRouletteSpinning = false;
+            });
+        });
+        
+        socket.on('roulette_result', (data) => {
+            rouletteHistory.unshift(data.number);
+            if (rouletteHistory.length > 10) rouletteHistory.pop();
+            updateRouletteHistory();
+            
+            const resultEl = document.getElementById('rouletteResult');
+            resultEl.textContent = data.number;
+            resultEl.style.color = data.color === 'red' ? '#dc2626' : data.color === 'black' ? '#1a1a1a' : '#16a34a';
+            resultEl.style.display = 'block';
+            
+            setTimeout(() => {
+                resultEl.style.display = 'none';
+                document.getElementById('rouletteBtn').disabled = false;
+            }, 3000);
+        });
+        
+        socket.on('roulette_bet_placed', (data) => {
+            const betInfo = {
+                name: data.name,
+                amount: data.amount,
+                type: data.type,
+                result: null,
+                won: null,
+                winAmount: 0
+            };
+            rouletteBetsHistory.unshift(betInfo);
+            if (rouletteBetsHistory.length > 20) rouletteBetsHistory.pop();
+            updateRouletteBets();
+        });
+        
+        socket.on('roulette_bet_success', (data) => {
+            balance = data.balance;
+            updateBalance();
+            updateStatus('✅ Ставка принята!');
+        });
+        
+        socket.on('roulette_win', (data) => {
+            balance += data.amount;
+            updateBalance();
+            updateStatus(`🎉 Выпало ${data.number}! Выигрыш: ${data.amount} ⭐`);
+        });
+        
+        socket.on('roulette_error', (data) => {
+            updateStatus('❌ ' + data.message);
+        });
+        
+        function updateRouletteTimer(timer, phase) {
+            const timerEl = document.getElementById('rouletteTimer');
+            
+            if (phase === 'betting') {
+                timerEl.textContent = `💰 Прием ставок: ${timer}с`;
+                timerEl.style.background = 'rgba(34, 197, 94, 0.1)';
+                timerEl.style.borderColor = 'rgba(34, 197, 94, 0.2)';
+            } else if (phase === 'countdown') {
+                timerEl.textContent = `⏱️ Запуск через ${timer}...`;
+                timerEl.style.background = 'rgba(255, 193, 7, 0.1)';
+                timerEl.style.borderColor = 'rgba(255, 193, 7, 0.2)';
+                timerEl.style.fontSize = '1.2em';
+            } else if (phase === 'spinning') {
+                timerEl.textContent = '🎰 Рулетка крутится...';
+                timerEl.style.background = 'rgba(59, 130, 246, 0.1)';
+                timerEl.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+            } else if (phase === 'result') {
+                timerEl.textContent = '✅ Результат!';
+                timerEl.style.background = 'rgba(139, 92, 246, 0.1)';
+                timerEl.style.borderColor = 'rgba(139, 92, 246, 0.2)';
+            }
+        }
+        
+        // ============ БОНУСЫ ============
+        let bonusInterval = null;
+        
+        async function claimBonus() {
+            try {
+                const response = await fetch(`${API_URL}/api/user/claim_bonus`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    balance = data.balance;
+                    updateBalance();
+                    updateStatus(`🎁 Получено ${data.bonus} ⭐!`);
+                    startBonusTimer();
+                } else {
+                    updateStatus('❌ ' + data.error);
+                    if (data.minutesLeft) {
+                        startBonusTimer();
+                    }
+                }
+            } catch (error) {
+                console.error('Error claiming bonus:', error);
+                updateStatus('❌ Ошибка сервера');
+            }
+        }
+        
+        function startBonusTimer() {
+            document.getElementById('bonusBtn').disabled = true;
+            document.getElementById('bonusBtn').style.opacity = '0.5';
+            document.getElementById('bonusTimer').style.display = 'block';
+            
+            let timeLeft = 60 * 60; // 1 час в секундах
+            
+            bonusInterval = setInterval(() => {
+                timeLeft--;
+                
+                const hours = Math.floor(timeLeft / 3600);
+                const minutes = Math.floor((timeLeft % 3600) / 60);
+                const seconds = timeLeft % 60;
+                
+                document.getElementById('bonusTimeLeft').textContent = 
+                    `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(bonusInterval);
+                    document.getElementById('bonusBtn').disabled = false;
+                    document.getElementById('bonusBtn').style.opacity = '1';
+                    document.getElementById('bonusTimer').style.display = 'none';
+                }
+            }, 1000);
+        }
+        
+        // ============ АДМИН ============
+        async function adminGiveCurrency() {
+            const targetId = document.getElementById('adminTargetId').value;
+            const amount = parseInt(document.getElementById('adminAmount').value);
+            
+            if (!targetId || !amount) {
+                updateStatus('❌ Заполните все поля');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/admin/give_currency`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        admin_id: userId,
+                        target_user_id: targetId,
+                        amount: amount
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus(`✅ Выдано ${amount} ⭐ игроку ${targetId}`);
+                    document.getElementById('adminTargetId').value = '';
+                } else {
+                    updateStatus('❌ ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error giving currency:', error);
+                updateStatus('❌ Ошибка сервера');
+            }
+        }
+        
+        // Показываем админ панель для админа
+        if (userId === '840879061') {
+            document.getElementById('adminPanel').style.display = 'block';
+        }
+        
+        // ============ РЕЙТИНГ ============
+        async function loadLeaderboard(type) {
+            try {
+                const response = await fetch(`${API_URL}/api/leaderboard`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: type })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayLeaderboard(data.leaderboard, type);
+                }
+                
+                // Обновляем активную вкладку
+                document.querySelectorAll('.rating-tab').forEach(btn => {
+                    btn.style.background = 'rgba(30, 35, 45, 0.6)';
+                    btn.style.border = '2px solid rgba(59, 130, 246, 0.3)';
+                });
+                
+                const activeBtn = type === 'balance' ? document.getElementById('ratingBalance') : document.getElementById('ratingWins');
+                activeBtn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                activeBtn.style.border = 'none';
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+            }
+        }
+        
+        function displayLeaderboard(players, type) {
+            const listEl = document.getElementById('leaderboardList');
+            
+            if (players.length === 0) {
+                listEl.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.4); padding: 40px;">Нет данных</div>';
+                return;
+            }
+            
+            listEl.innerHTML = players.map((player, index) => {
+                const isCurrentUser = player.user_id === userId;
+                const isTop3 = index < 3;
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                const value = type === 'balance' ? `${player.balance} ⭐` : `${player.total_wins} 🏆`;
+                
+                // Градиенты для топ-3
+                let bgGradient, borderColor, glowColor, medalSize;
+                if (index === 0) {
+                    bgGradient = 'linear-gradient(135deg, rgba(255, 215, 0, 0.25) 0%, rgba(218, 165, 32, 0.15) 100%)';
+                    borderColor = '2px solid rgba(255, 215, 0, 0.6)';
+                    glowColor = '0 0 20px rgba(255, 215, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.2)';
+                    medalSize = '2em';
+                } else if (index === 1) {
+                    bgGradient = 'linear-gradient(135deg, rgba(192, 192, 192, 0.25) 0%, rgba(169, 169, 169, 0.15) 100%)';
+                    borderColor = '2px solid rgba(192, 192, 192, 0.6)';
+                    glowColor = '0 0 15px rgba(192, 192, 192, 0.3), 0 0 30px rgba(192, 192, 192, 0.15)';
+                    medalSize = '1.8em';
+                } else if (index === 2) {
+                    bgGradient = 'linear-gradient(135deg, rgba(205, 127, 50, 0.25) 0%, rgba(184, 115, 51, 0.15) 100%)';
+                    borderColor = '2px solid rgba(205, 127, 50, 0.6)';
+                    glowColor = '0 0 15px rgba(205, 127, 50, 0.3), 0 0 30px rgba(205, 127, 50, 0.15)';
+                    medalSize = '1.6em';
+                } else {
+                    bgGradient = isCurrentUser ? 'rgba(59, 130, 246, 0.2)' : 'rgba(30, 35, 45, 0.6)';
+                    borderColor = isCurrentUser ? '2px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(59, 130, 246, 0.2)';
+                    glowColor = 'none';
+                    medalSize = '1.2em';
+                }
+                
+                return `<div class="leaderboard-item ${isTop3 ? 'top3-glow' : ''}" style="display: flex; justify-content: space-between; align-items: center; padding: ${isTop3 ? '15px' : '12px'}; background: ${bgGradient}; border-radius: ${isTop3 ? '15px' : '10px'}; border: ${borderColor}; box-shadow: ${glowColor}; position: relative; overflow: hidden; transition: all 0.3s ease;">
+                    ${isTop3 ? '<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%); animation: shine 3s infinite;"></div>' : ''}
+                    <div style="display: flex; align-items: center; gap: ${isTop3 ? '15px' : '10px'}; position: relative; z-index: 1;">
+                        <span style="font-size: ${medalSize}; min-width: ${isTop3 ? '45px' : '35px'}; text-align: center; ${isTop3 ? 'filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));' : ''}">${medal}</span>
+                        <div>
+                            <div style="font-weight: bold; color: ${isTop3 ? '#fff' : isCurrentUser ? '#3b82f6' : 'white'}; font-size: ${isTop3 ? '1.1em' : '1em'}; ${isTop3 ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.5);' : ''}">ID: ${player.user_id.substring(0, 8)}...</div>
+                            <div style="font-size: 0.85em; color: rgba(255,255,255,0.7);">Игр: ${player.total_games}</div>
+                        </div>
+                    </div>
+                    <div style="font-weight: bold; color: ${isTop3 ? '#fff' : '#3b82f6'}; font-size: ${isTop3 ? '1.3em' : '1.1em'}; position: relative; z-index: 1; ${isTop3 ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.5);' : ''}">${value}</div>
+                </div>`;
+            }).join('');
+        }
         
         // Применение темы Telegram
         document.body.style.background = tg.themeParams.bg_color || document.body.style.background;
