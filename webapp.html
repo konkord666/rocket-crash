@@ -1761,6 +1761,15 @@
                 bet: bet
             });
             
+            // Добавляем себя в список сразу
+            currentPlayers.push({
+                name: userName,
+                bet: bet,
+                result: null,
+                cashout: null
+            });
+            updatePlayersList();
+            
             updateStatus(`✅ Ставка принята! Ожидайте начала игры...`);
         }
         
@@ -2036,20 +2045,9 @@
         }
         
         async function addToHistory(crashValue) {
-            try {
-                const response = await fetch(`${API_URL}/api/game/add_history`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ crash_value: crashValue })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    gameHistory = data.history;
-                    updateHistoryBar();
-                }
-            } catch (error) {
-                console.error('Error adding to history:', error);
-                // Fallback: добавляем локально
+            // НЕ отправляем на сервер - сервер сам сохраняет
+            // Только обновляем локально если еще нет
+            if (!gameHistory.includes(crashValue)) {
                 gameHistory.unshift(crashValue);
                 if (gameHistory.length > 8) {
                     gameHistory = gameHistory.slice(0, 8);
@@ -3413,35 +3411,67 @@
         });
         
         socket.on('betting_phase', (data) => {
-            hasBet = false;
-            cashedOutAt = 0;
-            currentPlayers = [];
-            updatePlayersList();
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            graphPoints = [];
-            
-            document.getElementById('playBtn').disabled = false;
-            document.getElementById('playBtn').textContent = '🚀 Сделать ставку';
-            document.getElementById('playBtn').onclick = startGame;
-            document.getElementById('betInput').disabled = false;
-            document.getElementById('multiplier').textContent = '1.00x';
-            document.getElementById('multiplier').style.fontSize = '4.5em';
-            document.getElementById('multiplier').style.color = '#3b82f6';
-            document.getElementById('crashText').classList.remove('show');
-            document.getElementById('rocket').classList.remove('crashed');
-            document.getElementById('rocket').style.bottom = '25px';
-            
-            updateStatus(`💰 Прием ставок: ${data.timer}с`);
+            // Сброс для новой игры (через 3 секунды после краша)
+            setTimeout(() => {
+                hasBet = false;
+                cashedOutAt = 0;
+                currentPlayers = [];
+                updatePlayersList();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                graphPoints = [];
+                
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('playBtn').textContent = '🚀 Сделать ставку';
+                document.getElementById('playBtn').onclick = startGame;
+                document.getElementById('betInput').disabled = false;
+                document.getElementById('multiplier').textContent = '1.00x';
+                document.getElementById('multiplier').style.fontSize = '4.5em';
+                document.getElementById('multiplier').style.color = '#3b82f6';
+                document.getElementById('multiplier').style.opacity = '1';
+                document.getElementById('multiplier').classList.remove('growing');
+                document.getElementById('crashText').classList.remove('show');
+                document.getElementById('rocket').classList.remove('crashed');
+                document.getElementById('rocket').style.bottom = '25px';
+                
+                updateStatus(`💰 Прием ставок: ${data.timer}с`);
+            }, 3000); // 3 секунды показываем краш
         });
         
         socket.on('timer_update', (data) => {
-            updateStatus(`💰 Прием ставок: ${data.timer}с`);
+            if (data.timer <= 5 && data.timer > 0) {
+                // Обратный отсчет на экране
+                const multiplierEl = document.getElementById('multiplier');
+                multiplierEl.style.fontSize = '6em';
+                multiplierEl.style.color = '#3b82f6';
+                multiplierEl.textContent = data.timer;
+                multiplierEl.classList.add('growing');
+                
+                // Блокируем ставки
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('betInput').disabled = true;
+                
+                updateStatus(`🚀 Запуск через ${data.timer}...`);
+                
+                // Мигание
+                multiplierEl.style.opacity = '0.3';
+                setTimeout(() => {
+                    multiplierEl.style.opacity = '1';
+                }, 300);
+            } else {
+                updateStatus(`💰 Прием ставок: ${data.timer}с`);
+            }
         });
         
         socket.on('game_started', () => {
             serverGameActive = true;
             gameStartTime = Date.now();
             graphPoints = [];
+            
+            // Сбрасываем размер множителя
+            const multiplierEl = document.getElementById('multiplier');
+            multiplierEl.style.fontSize = '4.5em';
+            multiplierEl.style.opacity = '1';
+            multiplierEl.textContent = '1.00x';
             
             if (hasBet) {
                 document.getElementById('playBtn').textContent = '💰 Забрать выигрыш';
@@ -3471,14 +3501,17 @@
         });
         
         socket.on('player_bet', (player) => {
-            if (player.userId === userId) return;
-            currentPlayers.push({
-                name: player.name,
-                bet: player.bet,
-                result: null,
-                cashout: null
-            });
-            updatePlayersList();
+            // Добавляем всех игроков включая себя
+            const existingPlayer = currentPlayers.find(p => p.name === player.name);
+            if (!existingPlayer) {
+                currentPlayers.push({
+                    name: player.name,
+                    bet: player.bet,
+                    result: null,
+                    cashout: null
+                });
+                updatePlayersList();
+            }
         });
         
         socket.on('player_cashout', (data) => {
@@ -3492,7 +3525,10 @@
         
         socket.on('game_crashed', (data) => {
             serverGameActive = false;
+            multiplier = data.crashPoint;
+            
             document.getElementById('multiplier').classList.remove('growing');
+            document.getElementById('multiplier').textContent = data.crashPoint.toFixed(2) + 'x';
             document.getElementById('rocket').classList.add('crashed');
             document.getElementById('crashText').textContent = `💥 ${data.crashPoint.toFixed(2)}x`;
             document.getElementById('crashText').classList.add('show');
@@ -3502,9 +3538,16 @@
                 recordGameResult(false, currentBet, 0, 0);
             } else if (cashedOutAt > 0) {
                 updateStatus(`✅ Вы забрали на ${cashedOutAt.toFixed(2)}x | Краш: ${data.crashPoint.toFixed(2)}x`);
+            } else {
+                updateStatus(`💥 Краш на ${data.crashPoint.toFixed(2)}x!`);
             }
             
-            addToHistory(data.crashPoint);
+            // Обновляем историю только один раз
+            if (!gameHistory.includes(data.crashPoint)) {
+                gameHistory.unshift(data.crashPoint);
+                if (gameHistory.length > 8) gameHistory = gameHistory.slice(0, 8);
+                updateHistoryBar();
+            }
         });
         
         // Загрузка при старте
